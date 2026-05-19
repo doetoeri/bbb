@@ -59,6 +59,7 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      padding: 10px 20px;
     }
 
     .tactile-pill-btn:hover {
@@ -99,6 +100,7 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      padding: 10px 20px;
     }
 
     .tactile-pill-btn-primary:hover:not(:disabled) {
@@ -361,11 +363,42 @@
       const [showDeleteModal, setShowDeleteModal] = useState(false);
 
       const messagesEndRef = useRef(null);
+      
+      // 알림 기능을 위해 이전 메시지 개수를 추적하는 Ref
+      const prevMsgCountRef = useRef(0);
 
       // --- 헬퍼 함수 정의 ---
       const formatTime = (timestamp) => {
         return new Date(timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
       };
+
+      // --- 알림 권한 요청 ---
+      const requestNotificationPermission = () => {
+        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+          Notification.requestPermission();
+        }
+      };
+
+      // --- 새 메시지 도착 알림 발송 ---
+      useEffect(() => {
+        if (messages.length > prevMsgCountRef.current) {
+          if (prevMsgCountRef.current > 0 && profile) {
+            const latestMsg = messages[messages.length - 1];
+            // 내가 보낸 메시지가 아닐 경우에만 알림
+            if (latestMsg && latestMsg.senderId !== profile.id) {
+              if ('Notification' in window && Notification.permission === 'granted') {
+                // 브라우저 탭을 안 보고 있을 때(숨겨져 있을 때)만 스마트하게 알림!
+                if (document.hidden) {
+                  new Notification('빠바밤 새 메시지', {
+                    body: `${latestMsg.senderName}: ${latestMsg.text || '사진/메시지가 도착했습니다.'}`
+                  });
+                }
+              }
+            }
+          }
+        }
+        prevMsgCountRef.current = messages.length;
+      }, [messages, profile]);
 
       // --- LOCAL STORAGE 가상 세션 제어 폴백 ---
       const getLocalProfiles = () => {
@@ -559,6 +592,8 @@
         e.preventDefault();
         if (!joinName.trim()) return; 
 
+        requestNotificationPermission(); // 가입할 때 알림 권한 묻기
+
         const customId = 'user_' + Date.now() + Math.random().toString(36).substr(2, 4);
         const randomColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
         
@@ -598,6 +633,8 @@
         const selected = allProfiles[selectedIdx];
         localStorage.setItem(`transparent_chat_profile_${appId}_ch_${channelId}`, selected.id);
         
+        requestNotificationPermission(); // 기존 계정 접속할 때 알림 권한 묻기
+
         setProfile(selected);
         setIsJoined(true);
         if (!isCloudConnected) {
@@ -1100,7 +1137,7 @@
                       );
                     })}
 
-                    {/* 실시간 타이핑 추적 인디케이터 */}
+                    {/* 실시간 타이핑 추적 인디케이터 (다른 기기와 완전 연계) */}
                     <div className="flex flex-col gap-2.5 mt-4">
                       {allProfiles.filter(u => u.id !== profile.id && u.typingText && u.typingText.trim().length > 0).map(u => (
                         <div key={u.id} className="flex flex-col items-start gap-1 opacity-95">
