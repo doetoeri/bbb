@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>빠바밤 - 실시간 물리 메신저</title>
+  <title>BBB</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   
@@ -307,7 +307,6 @@
         gainNode.connect(ctx.destination);
 
         if (type === 'send') {
-          // 기계식 키보드 타건음 느낌의 띡!
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(600, ctx.currentTime);
           osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.1);
@@ -316,10 +315,9 @@
           osc.start(ctx.currentTime);
           osc.stop(ctx.currentTime + 0.1);
         } else if (type === 'receive') {
-          // 맑고 경쾌한 띠링~
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
-          osc.frequency.setValueAtTime(1108.73, ctx.currentTime + 0.1); // C#6
+          osc.frequency.setValueAtTime(880, ctx.currentTime); 
+          osc.frequency.setValueAtTime(1108.73, ctx.currentTime + 0.1); 
           gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
           osc.start(ctx.currentTime);
@@ -353,8 +351,15 @@
 
       const [isJoined, setIsJoined] = useState(false);
       const [joinName, setJoinName] = useState('');
+      const [joinPassword, setJoinPassword] = useState(''); // 비밀번호 상태 추가
+      
       const [loginMode, setLoginMode] = useState('select');
       
+      // 비밀번호 입력을 위한 상태 추가
+      const [attemptingProfile, setAttemptingProfile] = useState(null);
+      const [attemptPassword, setAttemptPassword] = useState('');
+      const [loginError, setLoginError] = useState('');
+
       const [channelId, setChannelId] = useState(() => {
         return localStorage.getItem(`transparent_channel_${appId}`) || '101'; 
       });
@@ -391,17 +396,12 @@
         if (messages.length > prevMsgCountRef.current) {
           if (prevMsgCountRef.current > 0 && profile) {
             const latestMsg = messages[messages.length - 1];
-            // 내가 보낸 메시지가 아닐 경우
             if (latestMsg && latestMsg.senderId !== profile.id) {
-              
-              // 1. 소리 및 진동 재생 (모든 환경)
               playSound('receive');
-              vibrate([30, 50, 30]); // 징-징-
-
-              // 2. 브라우저 창이 숨겨져 있을 때 팝업 알림
+              vibrate([30, 50, 30]); 
               if ('Notification' in window && Notification.permission === 'granted') {
                 if (document.hidden) {
-                  new Notification('빠바밤', {
+                  new Notification('BBB', {
                     body: `${latestMsg.senderName}: ${latestMsg.text || '사진이 도착했습니다.'}`
                   });
                 }
@@ -581,12 +581,18 @@
         const customId = 'user_' + Date.now() + Math.random().toString(36).substr(2, 4);
         const randomColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
         
-        const newProfile = { id: customId, name: joinName.trim(), color: randomColor, typingText: '' };
+        const newProfile = { 
+          id: customId, 
+          name: joinName.trim(), 
+          color: randomColor, 
+          typingText: '',
+          password: joinPassword // 설정된 비밀번호 저장
+        };
 
         if (isCloudConnected && db) {
           try {
             const userRef = db.doc(`artifacts/${appId}/channels/${channelId}/users/${customId}`);
-            await userRef.set({ name: newProfile.name, color: newProfile.color, typingText: '' });
+            await userRef.set({ name: newProfile.name, color: newProfile.color, typingText: '', password: newProfile.password });
           } catch (err) { setIsCloudConnected(false); }
         }
 
@@ -598,19 +604,27 @@
         setProfile(newProfile);
         setIsJoined(true);
         setJoinName('');
+        setJoinPassword('');
       };
 
-      const handleSelectProfile = (selectedIdx) => {
+      const handleVerifyPassword = () => {
+        if (attemptingProfile.password && attemptingProfile.password !== attemptPassword) {
+          setLoginError('비밀번호가 일치하지 않습니다.');
+          vibrate([50, 50, 50]);
+          return;
+        }
+
         vibrate([10, 30, 10]);
-        const selected = allProfiles[selectedIdx];
-        localStorage.setItem(`transparent_chat_profile_${appId}_ch_${channelId}`, selected.id);
+        localStorage.setItem(`transparent_chat_profile_${appId}_ch_${channelId}`, attemptingProfile.id);
         
         if ('Notification' in window && Notification.permission === 'default') {
           Notification.requestPermission().then(setNotiPermission);
         }
 
-        setProfile(selected);
+        setProfile(attemptingProfile);
         setIsJoined(true);
+        setAttemptingProfile(null);
+        setAttemptPassword('');
       };
 
       const handleSwitchAccount = async () => {
@@ -628,7 +642,7 @@
 
       const handleDeleteAccount = async () => {
         if (!profile) return;
-        vibrate([100, 50, 100]); // 징- 징- (삭제 경고)
+        vibrate([100, 50, 100]); 
         
         if (isCloudConnected && db) {
           try { await db.doc(`artifacts/${appId}/channels/${channelId}/users/${profile.id}`).delete(); } catch (err) {}
@@ -655,8 +669,8 @@
       const handleSend = async () => {
         if ((!inputText.trim() && !selectedImage) || !profile) return;
 
-        vibrate([15, 30, 15]); // 드르륵!
-        playSound('send');     // 띡!
+        vibrate([15, 30, 15]);
+        playSound('send');
 
         setIsUploading(true);
         let imageUrl = null;
@@ -709,7 +723,7 @@
       };
 
       const toggleReaction = async (msgId, emoji) => {
-        vibrate(15); // 톡!
+        vibrate(15);
         if (!profile) return;
         const msg = messages.find(m => m.id === msgId);
         if (!msg) return;
@@ -790,14 +804,14 @@
                   </div>
                 </div>
 
-                <h1 className="text-3xl font-black tracking-tight text-[#1E293B] mb-2">빠바밤</h1>
+                <h1 className="text-3xl font-black tracking-tight text-[#1E293B] mb-2">BBB</h1>
                 <p className="text-xs text-[#64748B] mb-8 leading-relaxed max-w-xs mx-auto font-medium">
-                  사진 공유 기능과 기계식 햅틱 진동이 추가되었습니다! 
+                  모든 글자 입력 과정이 투명하게 공유되는 동기화 대화방입니다.
                 </p>
 
                 <div className="debossed-well p-1.5 flex gap-2 mb-8">
-                  <button onClick={() => { vibrate(15); setLoginMode('select'); }} className={`flex-1 py-2.5 text-xs font-black rounded-full transition-all duration-150 ${loginMode === 'select' ? 'tactile-pill-btn text-[#1E293B]' : 'text-[#64748B] hover:text-[#1E293B]'}`} style={loginMode === 'select' ? { padding: '10px 0' } : {}}>멤버 선택</button>
-                  <button onClick={() => { vibrate(15); setLoginMode('create'); }} className={`flex-1 py-2.5 text-xs font-black rounded-full transition-all duration-150 ${loginMode === 'create' ? 'tactile-pill-btn text-[#1E293B]' : 'text-[#64748B] hover:text-[#1E293B]'}`} style={loginMode === 'create' ? { padding: '10px 0' } : {}}>멤버 추가</button>
+                  <button onClick={() => { vibrate(15); setLoginMode('select'); setAttemptingProfile(null); }} className={`flex-1 py-2.5 text-xs font-black rounded-full transition-all duration-150 ${loginMode === 'select' ? 'tactile-pill-btn text-[#1E293B]' : 'text-[#64748B] hover:text-[#1E293B]'}`} style={loginMode === 'select' ? { padding: '10px 0' } : {}}>멤버 선택</button>
+                  <button onClick={() => { vibrate(15); setLoginMode('create'); setAttemptingProfile(null); }} className={`flex-1 py-2.5 text-xs font-black rounded-full transition-all duration-150 ${loginMode === 'create' ? 'tactile-pill-btn text-[#1E293B]' : 'text-[#64748B] hover:text-[#1E293B]'}`} style={loginMode === 'create' ? { padding: '10px 0' } : {}}>멤버 추가</button>
                 </div>
 
                 {loginMode === 'select' && (
@@ -813,7 +827,7 @@
                     ) : (
                       <div className="max-h-56 overflow-y-auto p-1 flex flex-col gap-3">
                         {allProfiles.map((p, idx) => (
-                          <button key={p.id} onClick={() => handleSelectProfile(idx)} className="tactile-pill-btn w-full flex items-center justify-between group" style={{ padding: '12px 18px' }}>
+                          <button key={p.id} onClick={() => { vibrate(15); setAttemptingProfile(p); setAttemptPassword(''); setLoginError(''); }} className="tactile-pill-btn w-full flex items-center justify-between group" style={{ padding: '12px 18px' }}>
                             <div className="flex items-center gap-3">
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8)] ${p.color?.split(' ')[0]}`}>
                                 {p.name?.charAt(0)}
@@ -829,17 +843,45 @@
                 )}
 
                 {loginMode === 'create' && (
-                  <form onSubmit={handleCreateProfile} className="flex flex-col gap-6 text-left">
+                  <form onSubmit={handleCreateProfile} className="flex flex-col gap-4 text-left">
                     <div className="debossed-well p-1.5">
                       <input type="text" value={joinName} onChange={(e) => setJoinName(e.target.value)} placeholder="활동할 고유 대화명..." maxLength={10} className="w-full bg-transparent text-[#1E293B] px-4 py-3 outline-none placeholder:text-[#94A3B8] text-sm font-extrabold" required />
                     </div>
-                    <div className="px-1">
+                    <div className="debossed-well p-1.5">
+                      <input type="password" value={joinPassword} onChange={(e) => setJoinPassword(e.target.value)} placeholder="비밀번호 설정 (선택)" maxLength={20} className="w-full bg-transparent text-[#1E293B] px-4 py-3 outline-none placeholder:text-[#94A3B8] text-sm font-extrabold" />
+                    </div>
+                    <div className="px-1 mt-2">
                       <button type="submit" disabled={!joinName.trim()} className="tactile-pill-btn-primary w-full py-4 text-xs uppercase tracking-wider">
                         새 멤버 가입 및 입장
                       </button>
                     </div>
                   </form>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* 비밀번호 입력 모달 오버레이 */}
+          {attemptingProfile && (
+            <div className="absolute inset-0 bg-[#E5E9F0]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="tactile-plate w-full max-w-xs p-6 flex flex-col border border-white/60 shadow-2xl relative text-center animate-in fade-in zoom-in-95">
+                <h3 className="text-sm font-black text-[#1E293B] mb-4">{attemptingProfile.name} 계정 접속</h3>
+                <div className="debossed-well p-1.5 mb-2">
+                  <input 
+                    type="password" 
+                    value={attemptPassword} 
+                    onChange={(e) => { setAttemptPassword(e.target.value); setLoginError(''); }} 
+                    placeholder="비밀번호 입력..." 
+                    className="w-full bg-transparent text-[#1E293B] px-4 py-2 outline-none text-sm font-bold text-center"
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleVerifyPassword(); }}
+                    autoFocus
+                  />
+                </div>
+                {loginError && <p className="text-[10px] text-red-500 font-bold mb-4">{loginError}</p>}
+                <div className="flex gap-2 w-full mt-2">
+                  <button onClick={() => { vibrate(10); setAttemptingProfile(null); }} className="tactile-pill-btn flex-1 py-2.5 text-xs">취소</button>
+                  <button onClick={handleVerifyPassword} className="tactile-pill-btn-primary flex-1 py-2.5 text-xs">확인</button>
+                </div>
               </div>
             </div>
           )}
@@ -854,7 +896,7 @@
                   <div className="flex items-center gap-3">
                     <div className="tactile-pill-btn w-12 h-12 flex items-center justify-center pointer-events-none" style={{ padding: 0 }}><Icons.Home /></div>
                     <div>
-                      <h1 className="text-xl font-black tracking-tight text-[#1E293B]">빠바밤</h1>
+                      <h1 className="text-xl font-black tracking-tight text-[#1E293B]">BBB</h1>
                       <p className="text-[10px] text-[#64748B] font-extrabold mt-1">CH {channelId} 연결됨</p>
                     </div>
                   </div>
@@ -904,7 +946,7 @@
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8)] ${profile.color}`}>{profile.name.charAt(0)}</div>
                     <div>
-                      <h1 className="text-base font-black tracking-tight text-[#1E293B] flex items-center gap-1.5">빠바밤</h1>
+                      <h1 className="text-base font-black tracking-tight text-[#1E293B] flex items-center gap-1.5">BBB</h1>
                       <p className="text-[10px] text-[#475569] font-extrabold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.6)] animate-pulse"></span> CH {channelId}</p>
                     </div>
                   </div>
