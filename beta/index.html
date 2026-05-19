@@ -324,7 +324,7 @@
       }
     };
 
-    // --- 🖼️ 브라우저 자체 이미지 압축 기능 (Firebase Storage 에러 대비 우회용) ---
+    // --- 🖼️ 브라우저 자체 이미지 압축 기능 ---
     const compressImage = (file) => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -332,7 +332,7 @@
           const img = new Image();
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 800; // 가로 최대 800px로 줄여서 가볍게 전송
+            const MAX_WIDTH = 800;
             const MAX_HEIGHT = 800;
             let width = img.width;
             let height = img.height;
@@ -347,7 +347,7 @@
             canvas.height = height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', 0.6)); // 60% 품질로 용량 최소화
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
           };
           img.src = event.target.result;
         };
@@ -393,11 +393,40 @@
       const messagesEndRef = useRef(null);
       const prevMsgCountRef = useRef(0);
 
+      // --- 모바일 푸시 알림을 위한 특수 Service Worker 동적 생성 ---
+      useEffect(() => {
+        if ('serviceWorker' in navigator) {
+          try {
+            const swCode = "self.addEventListener('notificationclick', function(e) { e.notification.close(); });";
+            const blob = new Blob([swCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            navigator.serviceWorker.register(url).catch(() => {});
+          } catch (e) {}
+        }
+      }, []);
+
       useEffect(() => {
         if ('Notification' in window) {
           setNotiPermission(Notification.permission);
         }
       }, []);
+
+      // 스마트 알림 발송 함수 (모바일/웹 대응)
+      const fireNotification = (title, options) => {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(reg => {
+              reg.showNotification(title, options).catch(() => {
+                try { new Notification(title, options); } catch (e) {}
+              });
+            }).catch(() => {
+              try { new Notification(title, options); } catch (e) {}
+            });
+          } else {
+            try { new Notification(title, options); } catch (e) {}
+          }
+        }
+      };
 
       const handleRequestNotification = () => {
         if ('Notification' in window) {
@@ -408,12 +437,11 @@
           Notification.requestPermission().then(permission => {
             setNotiPermission(permission);
             if (permission === 'granted') {
-              // 권한이 켜지자마자 알림이 잘 되는지 확인시켜주는 테스트 팝업!
-              new Notification('BBB 알림 켜짐 🔔', { body: '이제 창을 닫아두어도 새 메시지가 오면 알림이 울립니다!' });
+              fireNotification('BBB 알림 켜짐 🔔', { body: '이제 창을 닫아두어도 새 메시지가 오면 알림이 울립니다!' });
             }
           });
         } else {
-          alert('이 브라우저(또는 아이폰 Safari)는 알림 기능을 지원하지 않습니다.\n아이폰은 하단 [공유] - [홈 화면에 추가]를 통해 앱을 설치하면 알림이 지원될 수 있습니다.');
+          alert('이 브라우저(또는 스마트폰 기기)는 자체 알림 기능을 지원하지 않습니다.\n아이폰은 하단 [공유] - [홈 화면에 추가]를 눌러 전용 앱으로 설치하면 알림이 지원될 수 있습니다.');
         }
       };
 
@@ -424,17 +452,10 @@
             if (latestMsg && latestMsg.senderId !== profile.id) {
               playSound('receive');
               vibrate([30, 50, 30]); 
-              if ('Notification' in window && Notification.permission === 'granted') {
-                // 인터넷 창이 내려가 있거나(hidden), 창을 띄워뒀어도 다른 프로그램을 클릭해 보고 있을 때(!hasFocus) 알림 발송
-                if (document.hidden || !document.hasFocus()) {
-                  try {
-                    new Notification('BBB 메신저', {
-                      body: `${latestMsg.senderName}: ${latestMsg.text || '사진이 도착했습니다.'}`
-                    });
-                  } catch (e) {
-                    console.error("알림 생성 오류:", e);
-                  }
-                }
+              if (document.hidden || !document.hasFocus()) {
+                fireNotification('BBB 메신저', {
+                  body: `${latestMsg.senderName}: ${latestMsg.text || '사진이 도착했습니다.'}`
+                });
               }
             }
           }
@@ -697,7 +718,7 @@
       };
 
       const handleSend = async () => {
-        if ((!inputText.trim() && !selectedImage) || !profile) return;
+        if ((!inputText.trim() && !selectedImage) || !profile || isUploading) return;
 
         vibrate([15, 30, 15]);
         playSound('send');
@@ -705,48 +726,51 @@
         setIsUploading(true);
         let imageUrl = null;
 
-        // 사진 100% 전송 보장을 위한 압축 및 Fallback 로직 적용
-        if (selectedImage) {
-          if (isCloudConnected && storage) {
-            try {
-              const fileRef = storage.ref(`artifacts/${appId}/channels/${channelId}/images/${Date.now()}_${selectedImage.name}`);
-              await fileRef.put(selectedImage);
-              imageUrl = await fileRef.getDownloadURL();
-            } catch (err) {
-              console.warn("Storage error, falling back to base64 encoding", err);
-              imageUrl = await compressImage(selectedImage); // 스토리지 에러 시 압축하여 직접 텍스트로 보냄
+        try {
+          if (selectedImage) {
+            if (isCloudConnected && storage) {
+              try {
+                const fileRef = storage.ref(`artifacts/${appId}/channels/${channelId}/images/${Date.now()}_${selectedImage.name}`);
+                await fileRef.put(selectedImage);
+                imageUrl = await fileRef.getDownloadURL();
+              } catch (err) {
+                console.warn("Storage error, falling back to base64 encoding", err);
+                imageUrl = await compressImage(selectedImage);
+              }
+            } else {
+              imageUrl = await compressImage(selectedImage);
             }
-          } else {
-            imageUrl = await compressImage(selectedImage); // 로컬 모드일 때는 무조건 압축하여 텍스트로 보냄
           }
-        }
 
-        const messageData = {
-          id: 'msg_' + Date.now() + Math.random().toString(36).substr(2, 4),
-          senderId: profile.id,
-          senderName: profile.name,
-          senderColor: profile.color,
-          text: inputText.trim(),
-          imageUrl: imageUrl,
-          timestamp: Date.now(),
-          readBy: [profile.id],
-          reactions: {},
-          replyTo: replyingTo ? replyingTo.id : null,
-        };
+          const messageData = {
+            id: 'msg_' + Date.now() + Math.random().toString(36).substr(2, 4),
+            senderId: profile.id,
+            senderName: profile.name,
+            senderColor: profile.color,
+            text: inputText.trim(),
+            imageUrl: imageUrl,
+            timestamp: Date.now(),
+            readBy: [profile.id],
+            reactions: {},
+            replyTo: replyingTo ? replyingTo.id : null,
+          };
 
-        setInputText('');
-        setSelectedImage(null);
-        setReplyingTo(null);
-        setIsUploading(false);
-
-        if (isCloudConnected && db) {
-          try {
+          if (isCloudConnected && db) {
             const newMsgRef = db.doc(`artifacts/${appId}/channels/${channelId}/messages/${messageData.id}`);
             await newMsgRef.set(messageData);
-            return;
-          } catch (err) { setIsCloudConnected(false); }
+          } else {
+            saveMessageLocally(messageData);
+          }
+        } catch (err) {
+          console.error("전송 중 에러가 발생했습니다:", err);
+          alert('메시지 전송에 실패했습니다. 다시 시도해주세요.');
+        } finally {
+          // PC나 모바일 어디서든 무조건 초기화되어 다음 문자를 다시 입력할 수 있게 보장!
+          setInputText('');
+          setSelectedImage(null);
+          setReplyingTo(null);
+          setIsUploading(false);
         }
-        saveMessageLocally(messageData);
       };
 
       const saveMessageLocally = (newMsg) => {
@@ -799,7 +823,6 @@
         window.dispatchEvent(new Event('storage'));
       };
 
-      // --- 새롭게 바뀐 "기계식 부팅" 로딩 화면 ---
       if (isLoading) {
         return (
           <div className="flex flex-col items-center justify-center h-screen bg-[#E5E9F0]">
@@ -1010,6 +1033,14 @@
 
                 <main className="flex-1 overflow-y-auto px-4 py-4 relative md:debossed-well md:m-2 md:rounded-[20px] md:bg-[#EAF0F6]">
                   <div className="max-w-xl mx-auto flex flex-col gap-4.5 pb-6">
+                    {messages.length === 0 && (
+                      <div className="debossed-well md:shadow-none md:border-dashed md:bg-white/30 text-center text-[#64748B] mt-10 text-xs p-8 leading-relaxed font-bold">
+                        작성된 대화 기록이 전혀 없습니다.<br />
+                        이 창을 다른 스마트폰이나 브라우저 시크릿 탭에서 새로 열어 다른 멤버로 로그인한 뒤,<br/>
+                        서로 완벽하게 1:1로 비쳐 보이는 실시간 타이핑을 즐겨보세요!
+                      </div>
+                    )}
+
                     {messages.map((msg) => {
                       const isMe = msg.senderId === profile.id;
                       const replyMsg = msg.replyTo ? messages.find(m => m.id === msg.replyTo) : null;
@@ -1133,7 +1164,13 @@
                         rows={1}
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                        onKeyDown={(e) => { 
+                          if (e.key === 'Enter' && !e.shiftKey) { 
+                            e.preventDefault(); 
+                            if (e.nativeEvent.isComposing) return; // 한글 조합 중 엔터 치는 것 무시!
+                            handleSend(); 
+                          } 
+                        }}
                         style={{ minHeight: '44px' }}
                         disabled={isUploading}
                       />
