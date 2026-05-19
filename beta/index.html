@@ -260,7 +260,7 @@
         </svg>
       ),
       LogOut: () => (
-        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
           <polyline points="16 17 21 12 16 7" />
           <line x1="21" y1="12" x2="9" y2="12" />
@@ -286,6 +286,21 @@
       Trash2: () => (
         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+        </svg>
+      ),
+      Bell: () => (
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+      ),
+      BellOff: () => (
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          <path d="M18.63 13A17.89 17.89 0 0 1 18 8" />
+          <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" />
+          <path d="M18 8a6 6 0 0 0-9.33-5" />
+          <line x1="1" y1="1" x2="23" y2="23" />
         </svg>
       )
     };
@@ -362,20 +377,31 @@
       // 계정 삭제 모달 상태
       const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+      // 알림 권한 상태 추적
+      const [notiPermission, setNotiPermission] = useState('default');
+
       const messagesEndRef = useRef(null);
-      
-      // 알림 기능을 위해 이전 메시지 개수를 추적하는 Ref
       const prevMsgCountRef = useRef(0);
 
-      // --- 헬퍼 함수 정의 ---
-      const formatTime = (timestamp) => {
-        return new Date(timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-      };
+      // --- 알림 권한 초기 확인 ---
+      useEffect(() => {
+        if ('Notification' in window) {
+          setNotiPermission(Notification.permission);
+        }
+      }, []);
 
-      // --- 알림 권한 요청 ---
-      const requestNotificationPermission = () => {
-        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-          Notification.requestPermission();
+      // --- 알림 권한 요청 수동 처리 ---
+      const handleRequestNotification = () => {
+        if ('Notification' in window) {
+          if (Notification.permission === 'denied') {
+            alert('브라우저에서 알림이 "차단"되어 있습니다.\n브라우저 주소창 왼쪽 자물쇠 아이콘을 눌러 알림 권한을 "허용"으로 바꿔주세요.');
+            return;
+          }
+          Notification.requestPermission().then(permission => {
+            setNotiPermission(permission);
+          });
+        } else {
+          alert('이 브라우저는 알림 기능을 지원하지 않습니다.');
         }
       };
 
@@ -399,6 +425,11 @@
         }
         prevMsgCountRef.current = messages.length;
       }, [messages, profile]);
+
+      // --- 헬퍼 함수 정의 ---
+      const formatTime = (timestamp) => {
+        return new Date(timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      };
 
       // --- LOCAL STORAGE 가상 세션 제어 폴백 ---
       const getLocalProfiles = () => {
@@ -592,7 +623,10 @@
         e.preventDefault();
         if (!joinName.trim()) return; 
 
-        requestNotificationPermission(); // 가입할 때 알림 권한 묻기
+        // 가입할 때 최초로 한 번 권한을 묻습니다.
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission().then(setNotiPermission);
+        }
 
         const customId = 'user_' + Date.now() + Math.random().toString(36).substr(2, 4);
         const randomColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
@@ -633,7 +667,9 @@
         const selected = allProfiles[selectedIdx];
         localStorage.setItem(`transparent_chat_profile_${appId}_ch_${channelId}`, selected.id);
         
-        requestNotificationPermission(); // 기존 계정 접속할 때 알림 권한 묻기
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission().then(setNotiPermission);
+        }
 
         setProfile(selected);
         setIsJoined(true);
@@ -664,7 +700,6 @@
       const handleDeleteAccount = async () => {
         if (!profile) return;
         
-        // 1. 클라우드에서 유저 삭제
         if (isCloudConnected && db) {
           try {
             await db.doc(`artifacts/${appId}/channels/${channelId}/users/${profile.id}`).delete();
@@ -673,12 +708,10 @@
           }
         }
         
-        // 2. 로컬 스토리지에서 유저 완전 제거
         const localUsers = getLocalProfiles().filter(u => u.id !== profile.id);
         localStorage.setItem(`local_profiles_${appId}_ch_${channelId}`, JSON.stringify(localUsers));
         localStorage.removeItem(`transparent_chat_profile_${appId}_ch_${channelId}`);
         
-        // 3. 상태 리셋 및 화면 전환
         setProfile(null);
         setIsJoined(false);
         setMessages([]);
@@ -822,7 +855,6 @@
               {/* 메인 3D 가공 플레이트 */}
               <div className="tactile-plate p-8 w-full max-w-md border border-white/40 text-center relative z-10 shadow-2xl">
                 
-                {/* 빠바밤 시그니처 링 테두리 물리 홈버튼 구조 */}
                 <div className="relative w-32 h-24 mx-auto mb-5 flex items-center justify-center">
                   <div className="tactile-pill-btn w-24 h-16 flex items-center justify-center pointer-events-none" style={{ padding: 0 }}>
                     <Icons.Home />
@@ -951,7 +983,7 @@
                   </div>
                 </div>
 
-                {/* 내 프로필 제어 카드 (계정 변경 및 삭제) */}
+                {/* 내 프로필 제어 카드 (알림 및 계정 삭제) */}
                 <div className="tactile-plate p-6 flex flex-col gap-5 border border-white/60">
                   <div className="flex items-center gap-3 mb-1">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg border shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8)] ${profile.color}`}>
@@ -962,13 +994,25 @@
                       <span className="text-[10px] text-[#64748B] font-bold">내 프로필 설정</span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={handleSwitchAccount} className="tactile-pill-btn flex-1 text-[10px] font-black py-2.5 px-0">
-                      <Icons.LogOut /> <span className="ml-1">변경</span>
-                    </button>
-                    <button onClick={() => setShowDeleteModal(true)} className="tactile-pill-btn flex-1 text-[10px] font-black py-2.5 px-0 !text-red-500 border-red-200/50 hover:bg-red-50">
-                      <Icons.Trash2 /> <span className="ml-1">삭제</span>
-                    </button>
+                  
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={handleRequestNotification} 
+                        className={`tactile-pill-btn flex-1 text-[10px] font-black py-2.5 px-0 ${notiPermission === 'granted' ? 'text-emerald-600 border-emerald-200' : 'text-amber-600 border-amber-200'}`}
+                      >
+                        {notiPermission === 'granted' ? <Icons.Bell /> : <Icons.BellOff />} 
+                        <span className="ml-1.5">{notiPermission === 'granted' ? '알림 켜짐' : '알림 켜기'}</span>
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={handleSwitchAccount} className="tactile-pill-btn flex-1 text-[10px] font-black py-2.5 px-0">
+                        <Icons.LogOut /> <span className="ml-1.5">계정 변경</span>
+                      </button>
+                      <button onClick={() => setShowDeleteModal(true)} className="tactile-pill-btn flex-1 text-[10px] font-black py-2.5 px-0 !text-red-500 border-red-200/50 hover:bg-red-50">
+                        <Icons.Trash2 /> <span className="ml-1.5">계정 삭제</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -993,7 +1037,7 @@
               {/* 메인 채팅 스크린 (모바일 겸용 우측 패널) */}
               <div className="flex-1 flex flex-col h-full w-full overflow-hidden relative md:tactile-plate md:p-3 md:border-white/60 md:shadow-2xl bg-[#E5E9F0] md:bg-transparent">
                 
-                {/* 모바일용 HEADER: 상단 베젤 (PC 환경인 md 이상에선 자동으로 숨김) */}
+                {/* 모바일용 HEADER: 상단 베젤 (PC에선 숨김) */}
                 <header className="md:hidden mx-4 mt-4 px-5 py-4 bg-[#EEF2F6] rounded-[24px] border border-white/80 flex items-center justify-between sticky top-4 z-30 shadow-[4px_6px_16px_rgba(163,177,198,0.45),_-4px_-4px_16px_rgba(255,255,255,0.7)]">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8)] ${profile.color}`}>
@@ -1010,7 +1054,13 @@
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={handleRequestNotification}
+                      className={`tactile-pill-btn p-2.5 ${notiPermission === 'granted' ? 'text-emerald-500' : 'text-amber-500'}`}
+                    >
+                      {notiPermission === 'granted' ? <Icons.Bell /> : <Icons.BellOff />}
+                    </button>
                     <button 
                       onClick={handleSwitchAccount}
                       className="tactile-pill-btn p-2.5"
