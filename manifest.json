@@ -1,0 +1,14 @@
+{
+  "name": "BBB 메신저",
+  "short_name": "BBB",
+  "description": "실시간 물리 메신저",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#E5E9F0",
+  "theme_color": "#2563EB",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
