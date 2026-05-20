@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BBB - 실시간 물리 메신저</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #E5E9F0;
+    }
+
+    /* --- 현실적인 3D 가공 플라스틱 입체 셰이딩 (Embossed Plate) --- */
+    .tactile-card {
+      background: linear-gradient(145deg, #EEF2F6, #D8DFE8);
+      border: 1.5px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 6px 8px 18px rgba(163, 177, 198, 0.55), -6px -6px 18px rgba(255, 255, 255, 0.95), inset 1px 1px 2px rgba(255, 255, 255, 0.9);
+      border-radius: 32px;
+    }
+
+    .tactile-pill-btn {
+      background: linear-gradient(180deg, #F1F5F9 0%, #D8DFE8 100%);
+      border: 3.5px solid #CBD5E1; 
+      outline: 1.5px solid #F1F5F9; 
+      box-shadow: inset 0px 2.5px 5px rgba(0, 0, 0, 0.12), inset 0px -2.5px 5px rgba(255, 255, 255, 0.95), 0px 6px 14px rgba(148, 163, 184, 0.5); 
+      border-radius: 9999px;
+      transition: all 0.1s cubic-bezier(0.2, 0.8, 0.2, 1);
+      color: #475569;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 10px 20px;
+    }
+
+    .tactile-pill-btn:hover {
+      background: linear-gradient(180deg, #F8FAFC 0%, #D1D5DB 100%);
+      box-shadow: inset 0px 1.5px 3px rgba(0, 0, 0, 0.08), inset 0px -2.5px 5px rgba(255, 255, 255, 0.98), 0px 8px 18px rgba(148, 163, 184, 0.65);
+      transform: translateY(-1px);
+    }
+
+    .tactile-pill-btn:active, .tactile-pill-btn-active {
+      background: linear-gradient(180deg, #CBD5E1 0%, #94A3B8 100%);
+      border-color: #94A3B8;
+      outline-color: #CBD5E1;
+      box-shadow: inset 0px 5px 10px rgba(0, 0, 0, 0.28), inset 0px -1px 2px rgba(255, 255, 255, 0.4), 0px 2px 4px rgba(255, 255, 255, 0.5);
+      transform: translateY(1.5px);
+      color: #1E293B;
+    }
+
+    .tactile-pill-btn-primary {
+      background: linear-gradient(180deg, #93C5FD 0%, #2563EB 100%);
+      border: 3.5px solid #1D4ED8;
+      outline: 1.5px solid #93C5FD;
+      box-shadow: inset 0px 2.5px 5px rgba(0, 0, 0, 0.16), inset 0px -2.5px 5px rgba(255, 255, 255, 0.45), 0px 6px 14px rgba(37, 99, 235, 0.35);
+      border-radius: 9999px;
+      transition: all 0.1s cubic-bezier(0.2, 0.8, 0.2, 1);
+      color: white;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 10px 20px;
+    }
+
+    .tactile-pill-btn-primary:hover:not(:disabled) {
+      background: linear-gradient(180deg, #A1CFFF 0%, #1D4ED8 100%);
+      box-shadow: inset 0px 1.5px 3px rgba(0, 0, 0, 0.1), inset 0px -2.5px 5px rgba(255, 255, 255, 0.5), 0px 8px 18px rgba(37, 99, 235, 0.45);
+      transform: translateY(-1px);
+    }
+
+    .tactile-pill-btn-primary:active:not(:disabled) {
+      background: linear-gradient(180deg, #2563EB 0%, #1E3A8A 100%);
+      border-color: #1E3A8A;
+      outline-color: #2563EB;
+      box-shadow: inset 0px 5px 10px rgba(0, 0, 0, 0.35), inset 0px -1px 2px rgba(255, 255, 255, 0.25), 0px 2px 4px rgba(255, 255, 255, 0.2);
+      transform: translateY(1.5px);
+    }
+
+    .tactile-pill-btn-primary:disabled {
+      background: linear-gradient(180deg, #E2E8F0 0%, #CBD5E1 100%);
+      border-color: #CBD5E1;
+      outline-color: #E2E8F0;
+      box-shadow: none;
+      color: #94A3B8;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .tactile-plate {
+      background: linear-gradient(145deg, #EEF2F6, #D8DFE8);
+      border: 1.5px solid rgba(255, 255, 255, 0.85);
+      box-shadow: 8px 10px 24px rgba(163, 177, 198, 0.55), -8px -8px 24px rgba(255, 255, 255, 0.95), inset 1px 1px 2px rgba(255, 255, 255, 0.9);
+      border-radius: 32px;
+    }
+
+    .debossed-well {
+      background: #E2E8F0;
+      border-radius: 24px;
+      box-shadow: inset 3.5px 3.5px 8px rgba(163, 177, 198, 0.8), inset -3.5px -3.5px 8px rgba(255, 255, 255, 0.95), 1px 1.5px 2px rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.45);
+    }
+
+    .embossed-unit-gray {
+      background: linear-gradient(145deg, #EEF2F6, #D8DFE8);
+      border: 1.5px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 3px 4px 10px rgba(163, 177, 198, 0.5), -3px -3px 10px rgba(255, 255, 255, 0.85);
+      border-radius: 24px;
+    }
+
+    .embossed-unit-blue {
+      background: linear-gradient(145deg, #93C5FD, #2563EB);
+      border: 1.5px solid rgba(255, 255, 255, 0.35);
+      box-shadow: 3px 4px 10px rgba(37, 99, 235, 0.28), -2px -2px 8px rgba(255, 255, 255, 0.2);
+      border-radius: 24px;
+    }
+
+    .chewy-bounce-mild {
+      transition: transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1.1), box-shadow 0.12s ease;
+    }
+    .chewy-bounce-mild:active {
+      transform: scale(0.97);
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const Icons = {
+      Home: () => (
+        <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+      ),
+      Send: () => (
+        <svg className="w-5 h-5 transform translate-x-0.5 -translate-y-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13" />
+          <polygon points="22 2 15 22 11 13 2 9 22 2" />
+        </svg>
+      ),
+      Users: () => (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      ),
+      X: () => (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      ),
+      Reply: () => (
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="9 17 4 12 9 7" />
+          <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+        </svg>
+      ),
+      Smile: () => (
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+          <line x1="9" y1="9" x2="9.01" y2="9" />
+          <line x1="15" y1="9" x2="15.01" y2="9" />
+        </svg>
+      ),
+      Eye: () => (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      ),
+      LogOut: () => (
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+      ),
+      ArrowRight: () => (
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12" />
+          <polyline points="12 5 19 12 12 19" />
+        </svg>
+      ),
+      Cloud: () => (
+        <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17.5 19A3.5 3.5 0 0 0 21 15.5c0-2.79-2.54-4.5-5-4.5-.42-1.89-2.18-3.5-4-3.5-2.67 0-4.5 1.83-4.5 4.5C5 12 3 13.79 3 15.5A3.5 3.5 0 0 0 6.5 19z" />
+        </svg>
+      ),
+      CloudOff: () => (
+        <svg className="w-3.5 h-3.5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m2 2 20 20M17.6 17.6c-.1 0-.1.1-.2.1A3.5 3.5 0 0 1 11.5 16M5 12c-1.7 0-3 1.3-3 3s1.3 3 3 3h3" />
+          <path d="M16 10.5c-.3-1.4-1.5-2.5-3-2.5-1.5 0-2.8 1.1-3 2.5C8.8 10.4 7.6 11.5 7.6 13c0 .2 0 .4.1.6M1 1l22 22" />
+        </svg>
+      ),
+      Trash2: () => (
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+        </svg>
+      ),
+      ImageIcon: () => (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+      ),
+      Bell: () => (
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+      ),
+      BellOff: () => (
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          <path d="M18.63 13A17.89 17.89 0 0 1 18 8" />
+          <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" />
+          <path d="M18 8a6 6 0 0 0-9.33-5" />
+          <line x1="1" y1="1" x2="23" y2="23" />
+        </svg>
+      )
+    };
+  </script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const defaultFirebaseConfig = {
+      apiKey: "AIzaSyAc19oH9g6K3wAKdDA1_WwhKpmilJqwrAk",
+      authDomain: "bbababam.firebaseapp.com",
+      projectId: "bbababam",
+      storageBucket: "bbababam.firebasestorage.app",
+      messagingSenderId: "171470364166",
+      appId: "1:171470364166:web:98455a89d49c19d0fe6d87",
+      measurementId: "G-0W3V7GWVXY"
+    };
+
+    const firebaseConfig = defaultFirebaseConfig;
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+    const appId = 'default-app-id';
+
+    const AVATAR_COLORS = [
+      'bg-[#E2E8F0] text-[#334155] border-[#CBD5E1]',
+      'bg-[#F1F5F9] text-[#475569] border-[#E2E8F0]',
+      'bg-[#FFE4E6] text-[#E11D48] border-[#FECDD3]',
+      'bg-[#FEF3C7] text-[#D97706] border-[#FDE68A]',
+      'bg-[#ECFDF5] text-[#059669] border-[#D1FAE5]',
+      'bg-[#E0F2FE] text-[#0284C7] border-[#BAE6FD]',
+      'bg-[#EEF2F6] text-[#334155] border-[#D8E2EF]',
+      'bg-[#FAE8FF] text-[#C084FC] border-[#F3E8FF]',
+      'bg-[#F0FDF4] text-[#16A34A] border-[#DCFCE7]',
+      'bg-[#FFF1F2] text-[#F43F5E] border-[#FFE4E6]',
+    ];
+
+    const EMOJIS = ['👍', '❤️', '😂', '🔥', '👀', '🎉'];
+
+    // --- 🔊 진동 & 효과음 매니저 ---
+    const playSound = (type) => {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        if (type === 'send') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(600, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.1);
+          gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.1);
+        } else if (type === 'receive') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, ctx.currentTime); 
+          osc.frequency.setValueAtTime(1108.73, ctx.currentTime + 0.1); 
+          gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.4);
+        }
+      } catch (e) {}
+    };
+
+    const vibrate = (pattern) => {
+      if ('vibrate' in navigator) {
+        try { navigator.vibrate(pattern); } catch (e) {}
+      }
+    };
+
+    // --- 🖼️ 브라우저 자체 이미지 압축 기능 ---
+    const compressImage = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800;
+            const MAX_HEIGHT = 800;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+            } else {
+              if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
+          };
+          img.src = event.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    };
+
+    function App() {
+      const [user, setUser] = useState(null);
+      const [profile, setProfile] = useState(null);
+      const [messages, setMessages] = useState([]);
+      const [allProfiles, setAllProfiles] = useState([]);
+      const [isCloudConnected, setIsCloudConnected] = useState(false);
+      const [isLoading, setIsLoading] = useState(true);
+      
+      const [inputText, setInputText] = useState('');
+      const [replyingTo, setReplyingTo] = useState(null);
+      const [readInfoModal, setReadInfoModal] = useState(null);
+      const [reactionMenu, setReactionMenu] = useState(null);
+      
+      const [selectedImage, setSelectedImage] = useState(null);
+      const [isUploading, setIsUploading] = useState(false);
+      const fileInputRef = useRef(null);
+
+      const [isJoined, setIsJoined] = useState(false);
+      const [joinName, setJoinName] = useState('');
+      const [joinPassword, setJoinPassword] = useState(''); 
+      const [loginMode, setLoginMode] = useState('select');
+      
+      const [attemptingProfile, setAttemptingProfile] = useState(null);
+      const [attemptPassword, setAttemptPassword] = useState('');
+      const [loginError, setLoginError] = useState('');
+
+      const [channelId, setChannelId] = useState(() => {
+        return localStorage.getItem(`transparent_channel_${appId}`) || '101'; 
+      });
+      const [tempChannelId, setTempChannelId] = useState(channelId);
+
+      const [showDeleteModal, setShowDeleteModal] = useState(false);
+      const [notiPermission, setNotiPermission] = useState('default');
+
+      const messagesEndRef = useRef(null);
+      const prevMsgCountRef = useRef(0);
+
+
+      useEffect(() => {
+        if ('Notification' in window) {
+          setNotiPermission(Notification.permission);
+        }
+        // Service Worker 등록 (모바일 백그라운드 알림에 필수)
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        }
+      }, []);
+
+      // 스마트 알림 발송 함수 (모바일/웹 대응)
+      const fireNotification = (title, options) => {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        // SW 등록 있으면 showNotification 사용 (모바일 백그라운드 필수)
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistration().then(reg => {
+            if (reg && reg.active) {
+              reg.showNotification(title, options).catch(() => {
+                try { new Notification(title, options); } catch (e) {}
+              });
+            } else {
+              try { new Notification(title, options); } catch (e) {}
+            }
+          }).catch(() => {
+            try { new Notification(title, options); } catch (e) {}
+          });
+        } else {
+          try { new Notification(title, options); } catch (e) {}
+        }
+      };
+
+      const handleRequestNotification = () => {
+        if ('Notification' in window) {
+          if (Notification.permission === 'denied') {
+            alert('브라우저에서 알림이 "차단"되어 있습니다.\n브라우저 주소창 왼쪽 자물쇠 아이콘을 눌러 알림 권한을 "허용"으로 바꿔주세요.');
+            return;
+          }
+          Notification.requestPermission().then(permission => {
+            setNotiPermission(permission);
+            if (permission === 'granted') {
+              fireNotification('BBB 알림 켜짐 🔔', { body: '이제 창을 닫아두어도 새 메시지가 오면 알림이 울립니다!' });
+            }
+          });
+        } else {
+          alert('이 브라우저(또는 스마트폰 기기)는 자체 알림 기능을 지원하지 않습니다.\n아이폰은 하단 [공유] - [홈 화면에 추가]를 눌러 전용 앱으로 설치하면 알림이 지원될 수 있습니다.');
+        }
+      };
+
+      useEffect(() => {
+        if (messages.length > prevMsgCountRef.current) {
+          if (prevMsgCountRef.current > 0 && profile) {
+            const latestMsg = messages[messages.length - 1];
+            if (latestMsg && latestMsg.senderId !== profile.id) {
+              playSound('receive');
+              vibrate([30, 50, 30]); 
+              if (document.hidden || !document.hasFocus()) {
+                fireNotification('BBB 메신저', {
+                  body: `${latestMsg.senderName}: ${latestMsg.text || '사진이 도착했습니다.'}`
+                });
+              }
+            }
+          }
+        }
+        prevMsgCountRef.current = messages.length;
+      }, [messages, profile]);
+
+      const formatTime = (timestamp) => {
+        return new Date(timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      };
+
+      const getLocalProfiles = () => {
+        try { return JSON.parse(localStorage.getItem(`local_profiles_${appId}_ch_${channelId}`) || '[]'); } catch (e) { return []; }
+      };
+
+      const getLocalMessages = () => {
+        try { return JSON.parse(localStorage.getItem(`local_messages_${appId}_ch_${channelId}`) || '[]'); } catch (e) { return []; }
+      };
+
+      useEffect(() => {
+        setIsLoading(true);
+        const timeoutId = setTimeout(() => {
+          if (isLoading) {
+            setIsCloudConnected(false);
+            setAllProfiles(getLocalProfiles());
+            checkLocalSession();
+            setIsLoading(false);
+          }
+        }, 3000);
+
+        const initAuth = async () => {
+          try {
+            await auth.signInAnonymously();
+            setIsCloudConnected(true);
+          } catch (error) {
+            setIsCloudConnected(false);
+            setAllProfiles(getLocalProfiles());
+            checkLocalSession();
+            setIsLoading(false);
+          }
+        };
+
+        initAuth();
+
+        const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+          setUser(currentUser);
+          if (currentUser) {
+            const savedProfileId = localStorage.getItem(`transparent_chat_profile_${appId}_ch_${channelId}`);
+            if (savedProfileId) {
+              try {
+                const pRef = db.doc(`artifacts/${appId}/channels/${channelId}/users/${savedProfileId}`);
+                const pSnap = await pRef.get();
+                if (pSnap.exists) {
+                  setProfile({ id: savedProfileId, ...pSnap.data() });
+                  setIsJoined(true);
+                } else {
+                  checkLocalSession();
+                }
+              } catch (e) { checkLocalSession(); }
+            } else {
+              checkLocalSession();
+            }
+            clearTimeout(timeoutId);
+            setIsLoading(false);
+          }
+        });
+
+        return () => { clearTimeout(timeoutId); unsubscribe(); };
+      }, [channelId]);
+
+      const checkLocalSession = () => {
+        const savedProfileId = localStorage.getItem(`transparent_chat_profile_${appId}_ch_${channelId}`);
+        if (savedProfileId) {
+          const localUsers = getLocalProfiles();
+          const found = localUsers.find(u => u.id === savedProfileId);
+          if (found) {
+            setProfile(found);
+            setIsJoined(true);
+            setMessages(getLocalMessages());
+          } else {
+            localStorage.removeItem(`transparent_chat_profile_${appId}_ch_${channelId}`);
+          }
+        }
+      };
+
+      useEffect(() => {
+        if (!isCloudConnected || !db || !user) {
+          const handleStorageChange = () => {
+            setAllProfiles(getLocalProfiles());
+            if (isJoined) setMessages(getLocalMessages());
+          };
+          window.addEventListener('storage', handleStorageChange);
+          setAllProfiles(getLocalProfiles());
+          if (isJoined) setMessages(getLocalMessages());
+          return () => window.removeEventListener('storage', handleStorageChange);
+        }
+
+        const usersRef = db.collection(`artifacts/${appId}/channels/${channelId}/users`);
+        const unsubscribeUsers = usersRef.onSnapshot((snapshot) => {
+          const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setAllProfiles(list);
+          if (profile) {
+            const currentRefreshed = list.find(u => u.id === profile.id);
+            if (currentRefreshed) setProfile(currentRefreshed);
+          }
+        }, () => { setIsCloudConnected(false); });
+
+        let unsubscribeMessages = () => {};
+        if (isJoined && profile) {
+          const messagesRef = db.collection(`artifacts/${appId}/channels/${channelId}/messages`);
+          unsubscribeMessages = messagesRef.onSnapshot((snapshot) => {
+            const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            msgs.sort((a, b) => a.timestamp - b.timestamp);
+            setMessages(msgs);
+
+            msgs.forEach(msg => {
+              if (msg.senderId !== profile.id && (!msg.readBy || !msg.readBy.includes(profile.id))) {
+                const currentMsgRef = db.doc(`artifacts/${appId}/channels/${channelId}/messages/${msg.id}`);
+                currentMsgRef.update({
+                  readBy: firebase.firestore.FieldValue.arrayUnion(profile.id)
+                }).catch(() => {});
+              }
+            });
+          }, console.error);
+        }
+
+        return () => { unsubscribeUsers(); unsubscribeMessages(); };
+      }, [user, isJoined, profile?.id, isCloudConnected, channelId]);
+
+      useEffect(() => {
+        if (!isJoined || !profile) return;
+        if (isCloudConnected && db) {
+          const userRef = db.doc(`artifacts/${appId}/channels/${channelId}/users/${profile.id}`);
+          const timeoutId = setTimeout(() => {
+            userRef.update({ typingText: inputText.trim() }).catch(() => {});
+          }, 90);
+          return () => clearTimeout(timeoutId);
+        } else {
+          const timeoutId = setTimeout(() => {
+            const localUsers = getLocalProfiles();
+            const updated = localUsers.map(u => u.id === profile.id ? { ...u, typingText: inputText.trim() } : u);
+            localStorage.setItem(`local_profiles_${appId}_ch_${channelId}`, JSON.stringify(updated));
+            window.dispatchEvent(new Event('storage'));
+          }, 90);
+          return () => clearTimeout(timeoutId);
+        }
+      }, [inputText, isJoined, profile?.id, isCloudConnected, channelId]);
+
+      useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, [messages, allProfiles]);
+
+      const handleChannelChange = (e) => {
+        e.preventDefault();
+        vibrate(15);
+        if (!tempChannelId.trim()) return;
+        localStorage.setItem(`transparent_channel_${appId}`, tempChannelId.trim());
+        setChannelId(tempChannelId.trim());
+        setProfile(null);
+        setIsJoined(false);
+        setMessages([]);
+        setAllProfiles([]);
+      };
+
+      const handleCreateProfile = async (e) => {
+        e.preventDefault();
+        if (!joinName.trim()) return; 
+
+        vibrate([10, 30, 10]);
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission().then(setNotiPermission);
+        }
+
+        const customId = 'user_' + Date.now() + Math.random().toString(36).substr(2, 4);
+        const randomColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+        
+        const newProfile = { 
+          id: customId, 
+          name: joinName.trim(), 
+          color: randomColor, 
+          typingText: '',
+          password: joinPassword 
+        };
+
+        if (isCloudConnected && db) {
+          try {
+            const userRef = db.doc(`artifacts/${appId}/channels/${channelId}/users/${customId}`);
+            await userRef.set({ name: newProfile.name, color: newProfile.color, typingText: '', password: newProfile.password });
+          } catch (err) { setIsCloudConnected(false); }
+        }
+
+        const currentLocals = getLocalProfiles();
+        const updatedLocals = [...currentLocals, newProfile];
+        localStorage.setItem(`local_profiles_${appId}_ch_${channelId}`, JSON.stringify(updatedLocals));
+        localStorage.setItem(`transparent_chat_profile_${appId}_ch_${channelId}`, customId);
+        
+        setProfile(newProfile);
+        setIsJoined(true);
+        setJoinName('');
+        setJoinPassword('');
+      };
+
+      const handleVerifyPassword = () => {
+        if (attemptingProfile.password && attemptingProfile.password !== attemptPassword) {
+          setLoginError('비밀번호가 일치하지 않습니다.');
+          vibrate([50, 50, 50]);
+          return;
+        }
+
+        vibrate([10, 30, 10]);
+        localStorage.setItem(`transparent_chat_profile_${appId}_ch_${channelId}`, attemptingProfile.id);
+        
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission().then(setNotiPermission);
+        }
+
+        setProfile(attemptingProfile);
+        setIsJoined(true);
+        setAttemptingProfile(null);
+        setAttemptPassword('');
+      };
+
+      const handleSwitchAccount = async () => {
+        vibrate(15);
+        if (profile && isCloudConnected && db) {
+          const userRef = db.doc(`artifacts/${appId}/channels/${channelId}/users/${profile.id}`);
+          await userRef.update({ typingText: '' }).catch(() => {});
+        }
+        localStorage.removeItem(`transparent_chat_profile_${appId}_ch_${channelId}`);
+        setProfile(null);
+        setIsJoined(false);
+        setMessages([]);
+        setLoginMode('select');
+      };
+
+      const handleDeleteAccount = async () => {
+        if (!profile) return;
+        vibrate([100, 50, 100]); 
+        
+        if (isCloudConnected && db) {
+          try { await db.doc(`artifacts/${appId}/channels/${channelId}/users/${profile.id}`).delete(); } catch (err) {}
+        }
+        
+        const localUsers = getLocalProfiles().filter(u => u.id !== profile.id);
+        localStorage.setItem(`local_profiles_${appId}_ch_${channelId}`, JSON.stringify(localUsers));
+        localStorage.removeItem(`transparent_chat_profile_${appId}_ch_${channelId}`);
+        
+        setProfile(null);
+        setIsJoined(false);
+        setMessages([]);
+        setLoginMode('select');
+        setShowDeleteModal(false);
+      };
+
+      const handleImageSelect = (e) => {
+        if (e.target.files[0]) {
+          vibrate(15);
+          setSelectedImage(e.target.files[0]);
+        }
+      };
+
+      const handleSend = async () => {
+        if ((!inputText.trim() && !selectedImage) || !profile || isUploading) return;
+
+        vibrate([15, 30, 15]);
+        playSound('send');
+
+        setIsUploading(true);
+        let imageUrl = null;
+
+        try {
+          if (selectedImage) {
+            if (isCloudConnected && storage) {
+              try {
+                const fileRef = storage.ref(`artifacts/${appId}/channels/${channelId}/images/${Date.now()}_${selectedImage.name}`);
+                await fileRef.put(selectedImage);
+                imageUrl = await fileRef.getDownloadURL();
+              } catch (err) {
+                console.warn("Storage error, falling back to base64 encoding", err);
+                imageUrl = await compressImage(selectedImage);
+              }
+            } else {
+              imageUrl = await compressImage(selectedImage);
+            }
+          }
+
+          const messageData = {
+            id: 'msg_' + Date.now() + Math.random().toString(36).substr(2, 4),
+            senderId: profile.id,
+            senderName: profile.name,
+            senderColor: profile.color,
+            text: inputText.trim(),
+            imageUrl: imageUrl,
+            timestamp: Date.now(),
+            readBy: [profile.id],
+            reactions: {},
+            replyTo: replyingTo ? replyingTo.id : null,
+          };
+
+          if (isCloudConnected && db) {
+            const newMsgRef = db.doc(`artifacts/${appId}/channels/${channelId}/messages/${messageData.id}`);
+            await newMsgRef.set(messageData);
+          } else {
+            saveMessageLocally(messageData);
+          }
+        } catch (err) {
+          console.error("전송 중 에러가 발생했습니다:", err);
+          alert('메시지 전송에 실패했습니다. 다시 시도해주세요.');
+        } finally {
+          // PC나 모바일 어디서든 무조건 초기화되어 다음 문자를 다시 입력할 수 있게 보장!
+          setInputText('');
+          setSelectedImage(null);
+          setReplyingTo(null);
+          setIsUploading(false);
+        }
+      };
+
+      const saveMessageLocally = (newMsg) => {
+        const currentLocals = getLocalMessages();
+        const updated = [...currentLocals, newMsg];
+        localStorage.setItem(`local_messages_${appId}_ch_${channelId}`, JSON.stringify(updated));
+        setMessages(updated);
+        window.dispatchEvent(new Event('storage'));
+      };
+
+      const toggleReaction = async (msgId, emoji) => {
+        vibrate(15);
+        if (!profile) return;
+        const msg = messages.find(m => m.id === msgId);
+        if (!msg) return;
+
+        const currentReactions = msg.reactions?.[emoji] || [];
+        const hasReacted = currentReactions.includes(profile.id);
+
+        let newReactions = hasReacted 
+          ? currentReactions.filter(id => id !== profile.id)
+          : [...currentReactions, profile.id];
+
+        if (isCloudConnected && db) {
+          try {
+            const msgRef = db.doc(`artifacts/${appId}/channels/${channelId}/messages/${msgId}`);
+            if (newReactions.length === 0) {
+              await msgRef.update({ [`reactions.${emoji}`]: firebase.firestore.FieldValue.delete() });
+            } else {
+              await msgRef.update({ [`reactions.${emoji}`]: newReactions });
+            }
+            setReactionMenu(null);
+            return;
+          } catch (e) { setIsCloudConnected(false); }
+        }
+
+        const localMsgs = getLocalMessages();
+        const updated = localMsgs.map(m => {
+          if (m.id === msgId) {
+            const copyReactions = { ...m.reactions };
+            if (newReactions.length === 0) delete copyReactions[emoji];
+            else copyReactions[emoji] = newReactions;
+            return { ...m, reactions: copyReactions };
+          }
+          return m;
+        });
+        localStorage.setItem(`local_messages_${appId}_ch_${channelId}`, JSON.stringify(updated));
+        setMessages(updated);
+        setReactionMenu(null);
+        window.dispatchEvent(new Event('storage'));
+      };
+
+      if (isLoading) {
+        return (
+          <div className="flex flex-col items-center justify-center h-screen bg-[#E5E9F0]">
+            <div className="tactile-plate p-10 flex flex-col items-center gap-8 relative overflow-hidden border border-white/60">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-[#CBD5E1]">
+                <div className="h-full bg-[#2563EB] w-1/2 animate-[pulse_1s_ease-in-out_infinite]"></div>
+              </div>
+              <div className="relative w-28 h-28 mx-auto flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-4 border-[#E2E8F0] border-t-[#2563EB] animate-spin"></div>
+                <div className="tactile-pill-btn w-20 h-20 flex items-center justify-center pointer-events-none" style={{ padding: 0 }}>
+                  <span className="text-xl font-black text-[#1E293B] tracking-tighter">BBB</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <h2 className="text-sm font-black text-[#1E293B] tracking-[0.2em]">SYSTEM BOOTING</h2>
+                <p className="text-[10px] font-bold text-[#64748B] flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                  동기화 모듈 예열 중...
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex flex-col h-screen bg-[#E5E9F0] text-[#2C3E50] font-sans relative overflow-hidden">
+          
+          {/* 1. 온보딩 / 가입 화면 */}
+          {(!isJoined || !profile) && (
+            <div className="h-screen flex items-center justify-center p-6 z-10 overflow-y-auto">
+              <div className="absolute top-4 right-4 flex items-center gap-3">
+                <form onSubmit={handleChannelChange} className="debossed-well px-2.5 py-1 flex items-center gap-1.5 text-xs font-bold">
+                  <span className="text-[#64748B] text-[10px]">채널번호:</span>
+                  <input type="text" value={tempChannelId} onChange={(e) => setTempChannelId(e.target.value)} className="w-12 bg-transparent text-[#1E293B] outline-none text-center font-black" />
+                  <button type="submit" className="text-[10px] text-[#2563EB] font-black hover:underline">이동</button>
+                </form>
+                
+                <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-[#E2E8F0] border border-white/60 shadow-[inset_1px_1px_3px_rgba(0,0,0,0.08),_2px_2px_4px_rgba(255,255,255,0.8)] text-[10px] font-black tracking-wide uppercase">
+                  {isCloudConnected ? (
+                    <><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.6)] animate-pulse"></span> <span className="text-[#475569]">CH {channelId} Active</span></>
+                  ) : (
+                    <><span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span> <span className="text-[#475569]">Local Mode</span></>
+                  )}
+                </div>
+              </div>
+
+              <div className="tactile-plate p-8 w-full max-w-md border border-white/40 text-center relative z-10 shadow-2xl">
+                <div className="relative w-32 h-24 mx-auto mb-5 flex items-center justify-center">
+                  <div className="tactile-pill-btn w-24 h-16 flex items-center justify-center pointer-events-none" style={{ padding: 0 }}>
+                    <span className="text-2xl font-black tracking-tighter">BBB</span>
+                  </div>
+                </div>
+
+                <h1 className="text-3xl font-black tracking-tight text-[#1E293B] mb-2">BBB</h1>
+                <p className="text-xs text-[#64748B] mb-8 leading-relaxed max-w-xs mx-auto font-medium">
+                  모든 글자 입력 과정이 투명하게 공유되는 동기화 대화방입니다.
+                </p>
+
+                <div className="debossed-well p-1.5 flex gap-2 mb-8">
+                  <button onClick={() => { vibrate(15); setLoginMode('select'); setAttemptingProfile(null); }} className={`flex-1 py-2.5 text-xs font-black rounded-full transition-all duration-150 ${loginMode === 'select' ? 'tactile-pill-btn text-[#1E293B]' : 'text-[#64748B] hover:text-[#1E293B]'}`} style={loginMode === 'select' ? { padding: '10px 0' } : {}}>멤버 선택</button>
+                  <button onClick={() => { vibrate(15); setLoginMode('create'); setAttemptingProfile(null); }} className={`flex-1 py-2.5 text-xs font-black rounded-full transition-all duration-150 ${loginMode === 'create' ? 'tactile-pill-btn text-[#1E293B]' : 'text-[#64748B] hover:text-[#1E293B]'}`} style={loginMode === 'create' ? { padding: '10px 0' } : {}}>멤버 추가</button>
+                </div>
+
+                {loginMode === 'select' && (
+                  <div className="flex flex-col text-left">
+                    <h2 className="text-[10px] font-black text-[#64748B] uppercase tracking-wider mb-3 px-1 flex items-center gap-1.5">
+                      <Icons.Users /> 대기실 내 접속자 목록
+                    </h2>
+                    {allProfiles.length === 0 ? (
+                      <div className="debossed-well text-center py-10 px-4 text-xs text-[#64748B] leading-relaxed font-bold">
+                        개설된 멤버가 없습니다.<br/>
+                        <span className="text-[#2563EB] cursor-pointer hover:underline mt-2 inline-block font-black" onClick={() => setLoginMode('create')}>새 멤버 만들고 첫 대화 시작하기</span>
+                      </div>
+                    ) : (
+                      <div className="max-h-56 overflow-y-auto p-1 flex flex-col gap-3">
+                        {allProfiles.map((p, idx) => (
+                          <button key={p.id} onClick={() => { vibrate(15); setAttemptingProfile(p); setAttemptPassword(''); setLoginError(''); }} className="tactile-pill-btn w-full flex items-center justify-between group" style={{ padding: '12px 18px' }}>
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8)] ${p.color?.split(' ')[0]}`}>
+                                {p.name?.charAt(0)}
+                              </div>
+                              <span className="font-extrabold text-[#1E293B] text-sm">{p.name}</span>
+                            </div>
+                            <Icons.ArrowRight />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {loginMode === 'create' && (
+                  <form onSubmit={handleCreateProfile} className="flex flex-col gap-4 text-left">
+                    <div className="debossed-well p-1.5">
+                      <input type="text" value={joinName} onChange={(e) => setJoinName(e.target.value)} placeholder="활동할 고유 대화명..." maxLength={10} className="w-full bg-transparent text-[#1E293B] px-4 py-3 outline-none placeholder:text-[#94A3B8] text-sm font-extrabold" required />
+                    </div>
+                    <div className="debossed-well p-1.5">
+                      <input type="password" value={joinPassword} onChange={(e) => setJoinPassword(e.target.value)} placeholder="비밀번호 설정 (선택)" maxLength={20} className="w-full bg-transparent text-[#1E293B] px-4 py-3 outline-none placeholder:text-[#94A3B8] text-sm font-extrabold" />
+                    </div>
+                    <div className="px-1 mt-2">
+                      <button type="submit" disabled={!joinName.trim()} className="tactile-pill-btn-primary w-full py-4 text-xs uppercase tracking-wider">
+                        새 멤버 가입 및 입장
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 비밀번호 입력 모달 오버레이 */}
+          {attemptingProfile && (
+            <div className="absolute inset-0 bg-[#E5E9F0]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="tactile-plate w-full max-w-xs p-6 flex flex-col border border-white/60 shadow-2xl relative text-center animate-in fade-in zoom-in-95">
+                <h3 className="text-sm font-black text-[#1E293B] mb-4">{attemptingProfile.name} 계정 접속</h3>
+                <div className="debossed-well p-1.5 mb-2">
+                  <input 
+                    type="password" 
+                    value={attemptPassword} 
+                    onChange={(e) => { setAttemptPassword(e.target.value); setLoginError(''); }} 
+                    placeholder={attemptingProfile.password ? "비밀번호 입력..." : "비밀번호 없이 엔터(Enter)"} 
+                    className="w-full bg-transparent text-[#1E293B] px-4 py-2 outline-none text-sm font-bold text-center placeholder:text-[#94A3B8]"
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleVerifyPassword(); }}
+                    autoFocus
+                  />
+                </div>
+                {loginError && <p className="text-[10px] text-red-500 font-bold mb-4">{loginError}</p>}
+                <div className="flex gap-2 w-full mt-2">
+                  <button onClick={() => { vibrate(10); setAttemptingProfile(null); }} className="tactile-pill-btn flex-1 py-2.5 text-xs">취소</button>
+                  <button onClick={handleVerifyPassword} className="tactile-pill-btn-primary flex-1 py-2.5 text-xs">확인</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 2. 대화방 메인 화면 (PC / 모바일 분할 레이아웃) */}
+          {isJoined && profile && (
+            <div className="flex-1 flex flex-col md:flex-row gap-4 h-full max-w-7xl mx-auto w-full z-10 overflow-hidden md:p-6 md:pb-6">
+              
+              {/* PC(태블릿) 좌측 사이드바 */}
+              <aside className="hidden md:flex w-80 flex-col gap-6 h-full shrink-0">
+                <div className="tactile-plate p-6 flex flex-col gap-5 border border-white/60">
+                  <div className="flex items-center gap-3">
+                    <div className="tactile-pill-btn w-12 h-12 flex items-center justify-center pointer-events-none" style={{ padding: 0 }}><span className="text-lg font-black tracking-tighter">BBB</span></div>
+                    <div>
+                      <h1 className="text-xl font-black tracking-tight text-[#1E293B]">BBB</h1>
+                      <p className="text-[10px] text-[#64748B] font-extrabold mt-1">CH {channelId} 연결됨</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="tactile-plate p-6 flex flex-col gap-5 border border-white/60">
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg border shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8)] ${profile.color}`}>
+                      {profile.name.charAt(0)}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-black text-[#1E293B]">{profile.name}</span>
+                      <span className="text-[10px] text-[#64748B] font-bold">내 프로필 설정</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <button onClick={() => { vibrate(15); handleRequestNotification(); }} className={`tactile-pill-btn flex-1 text-[10px] font-black py-2.5 px-0 ${notiPermission === 'granted' ? 'text-emerald-600 border-emerald-200' : 'text-amber-600 border-amber-200'}`}>
+                      {notiPermission === 'granted' ? <Icons.Bell /> : <Icons.BellOff />} 
+                      <span className="ml-1.5">{notiPermission === 'granted' ? '알림 켜짐' : '알림 켜기'}</span>
+                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={handleSwitchAccount} className="tactile-pill-btn flex-1 text-[10px] font-black py-2.5 px-0"><Icons.LogOut /> <span className="ml-1.5">변경</span></button>
+                      <button onClick={() => { vibrate(15); setShowDeleteModal(true); }} className="tactile-pill-btn flex-1 text-[10px] font-black py-2.5 px-0 !text-red-500 border-red-200/50 hover:bg-red-50"><Icons.Trash2 /> <span className="ml-1.5">삭제</span></button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="tactile-plate p-6 flex-1 overflow-hidden flex flex-col border border-white/60">
+                  <h2 className="text-xs font-black text-[#64748B] uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                    <Icons.Users /> 대기실 참여자 ({allProfiles.length})
+                  </h2>
+                  <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2.5">
+                    {allProfiles.map((p) => (
+                      <div key={p.id} className="debossed-well p-3 flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border shadow-sm ${p.color?.split(' ')[0]}`}>{p.name?.charAt(0)}</div>
+                        <span className="font-extrabold text-[#1E293B] text-xs truncate">{p.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </aside>
+
+              {/* 메인 채팅 스크린 (우측/모바일) */}
+              <div className="flex-1 flex flex-col h-full w-full overflow-hidden relative md:tactile-plate md:p-3 md:border-white/60 md:shadow-2xl bg-[#E5E9F0] md:bg-transparent">
+                
+                <header className="md:hidden mx-4 mt-4 px-5 py-4 bg-[#EEF2F6] rounded-[24px] border border-white/80 flex items-center justify-between sticky top-4 z-30 shadow-[4px_6px_16px_rgba(163,177,198,0.45),_-4px_-4px_16px_rgba(255,255,255,0.7)]">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8)] ${profile.color}`}>{profile.name.charAt(0)}</div>
+                    <div>
+                      <h1 className="text-base font-black tracking-tight text-[#1E293B] flex items-center gap-1.5">BBB</h1>
+                      <p className="text-[10px] text-[#475569] font-extrabold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.6)] animate-pulse"></span> CH {channelId}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => { vibrate(15); handleRequestNotification(); }} className={`tactile-pill-btn p-2.5 ${notiPermission === 'granted' ? 'text-emerald-500' : 'text-amber-500'}`}>{notiPermission === 'granted' ? <Icons.Bell /> : <Icons.BellOff />}</button>
+                    <button onClick={handleSwitchAccount} className="tactile-pill-btn p-2.5"><Icons.LogOut /></button>
+                    <button onClick={() => { vibrate(15); setShowDeleteModal(true); }} className="tactile-pill-btn p-2.5 text-red-500 border-red-200/50"><Icons.Trash2 /></button>
+                  </div>
+                </header>
+
+                <main className="flex-1 overflow-y-auto px-4 py-4 relative md:debossed-well md:m-2 md:rounded-[20px] md:bg-[#EAF0F6]">
+                  <div className="max-w-xl mx-auto flex flex-col gap-4.5 pb-6">
+                    {messages.length === 0 && (
+                      <div className="debossed-well md:shadow-none md:border-dashed md:bg-white/30 text-center text-[#64748B] mt-10 text-xs p-8 leading-relaxed font-bold">
+                        작성된 대화 기록이 전혀 없습니다.<br />
+                        이 창을 다른 스마트폰이나 브라우저 시크릿 탭에서 새로 열어 다른 멤버로 로그인한 뒤,<br/>
+                        서로 완벽하게 1:1로 비쳐 보이는 실시간 타이핑을 즐겨보세요!
+                      </div>
+                    )}
+
+                    {messages.map((msg) => {
+                      const isMe = msg.senderId === profile.id;
+                      const replyMsg = msg.replyTo ? messages.find(m => m.id === msg.replyTo) : null;
+                      const unreadCount = Math.max(0, allProfiles.length - (msg.readBy ? msg.readBy.length : 1));
+
+                      return (
+                        <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} my-1`}>
+                          {!isMe && <span className="text-[10px] font-extrabold text-[#64748B] mb-0.5 ml-1.5">{msg.senderName}</span>}
+                          <div className={`flex items-end gap-2.5 max-w-[85%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                            
+                            <div className="relative group">
+                              <div className={`flex flex-col p-4 chewy-bounce-mild ${isMe ? 'embossed-unit-blue text-white' : 'embossed-unit-gray text-[#1E293B]'}`}>
+                                {replyMsg && (
+                                  <div className={`mb-2 px-2.5 py-1.5 rounded-xl text-[11px] border-l-2 ${isMe ? 'bg-white/10 border-white/40 text-white/90' : 'bg-black/5 border-[#2563EB]/40 text-[#475569]'}`}>
+                                    <span className="font-bold text-[9px] block mb-0.5 opacity-80">{replyMsg.senderName}에게 답장</span>
+                                    <p className="truncate">{replyMsg.text}</p>
+                                  </div>
+                                )}
+                                
+                                {msg.imageUrl && (
+                                  <img src={msg.imageUrl} alt="첨부된 사진" className="max-w-full rounded-xl mb-2 shadow-sm border border-white/20" style={{ maxHeight: '220px', objectFit: 'cover' }} />
+                                )}
+                                
+                                {msg.text && <p className="whitespace-pre-wrap leading-relaxed text-xs sm:text-[13px] font-semibold">{msg.text}</p>}
+
+                                {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 mt-2.5">
+                                    {Object.entries(msg.reactions).map(([emoji, users]) => (
+                                      <button key={emoji} onClick={() => toggleReaction(msg.id, emoji)} className="tactile-pill-btn px-2.5 py-1 border text-[10px]" style={{ padding: '4px 10px', outline: 'none' }}>
+                                        {emoji} {users.length}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Hover Action Triggers: 겹침 방지를 위해 말풍선 옆이 아닌 '위(-top-10)'로 이동 */}
+                              <div className={`absolute -top-10 flex gap-2.5 transition-opacity duration-150 opacity-0 group-hover:opacity-100 z-30 ${isMe ? 'right-0' : 'left-0'}`}>
+                                <button onClick={() => { vibrate(15); setReplyingTo(msg); }} className="tactile-pill-btn shadow-md" style={{ padding: '8px' }}><Icons.Reply /></button>
+                                <button onClick={() => { vibrate(15); setReactionMenu(reactionMenu === msg.id ? null : msg.id); }} className="tactile-pill-btn shadow-md" style={{ padding: '8px' }}><Icons.Smile /></button>
+                              </div>
+
+                              {/* Reaction Drawer Container: z-index를 높여 다른 요소를 확실히 덮도록 수정 */}
+                              {reactionMenu === msg.id && (
+                                <div className="tactile-card absolute top-full mt-2.5 p-1.5 z-50 flex gap-2 rounded-full shadow-lg">
+                                  {EMOJIS.map(e => (
+                                    <button key={e} onClick={() => toggleReaction(msg.id, e)} className="text-base p-1.5 hover:bg-black/5 rounded-full transition-transform hover:scale-125">{e}</button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Read Info and Timestamp: 터치 범위를 넓히고(p-1), 최상단 터치 인식(z-40) 적용 */}
+                            <div className={`relative z-40 flex flex-col text-[8.5px] text-[#64748B] ${isMe ? 'items-end' : 'items-start'} mb-0.5`}>
+                              <button onClick={() => { vibrate(15); setReadInfoModal(msg); }} className="font-extrabold text-[#2563EB] hover:text-[#1D4ED8] transition-colors hover:underline mb-0.5 whitespace-nowrap p-1">
+                                {unreadCount === 0 ? '모두 읽음' : `읽음 ${msg.readBy ? msg.readBy.length : 1}명`}
+                              </button>
+                              <span>{formatTime(msg.timestamp)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* 실시간 타이핑 추적 인디케이터 */}
+                    <div className="flex flex-col gap-2.5 mt-4">
+                      {allProfiles.filter(u => u.id !== profile.id && u.typingText && u.typingText.trim().length > 0).map(u => (
+                        <div key={u.id} className="flex flex-col items-start gap-1 opacity-95">
+                          <div className="flex items-center gap-1.5 ml-1.5">
+                            <div className="flex gap-0.5 mr-0.5">
+                              <span className="w-1.5 h-1.5 bg-[#2563EB] rounded-full animate-bounce"></span>
+                              <span className="w-1.5 h-1.5 bg-[#2563EB] rounded-full animate-bounce delay-75"></span>
+                              <span className="w-1.5 h-1.5 bg-[#2563EB] rounded-full animate-bounce delay-150"></span>
+                            </div>
+                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border border-white/60 shadow-sm ${u.color}`}>{u.name} 입력 중</span>
+                          </div>
+                          <div className="debossed-well text-[#475569] px-4.5 py-2.5 text-xs break-all max-w-[80%] italic font-bold">
+                            "{u.typingText}"
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div ref={messagesEndRef} className="h-2" />
+                  </div>
+                </main>
+
+                <footer className="p-4 bg-gradient-to-t from-[#E5E9F0] md:from-transparent via-[#E5E9F0]/95 md:via-transparent to-transparent sticky bottom-0 z-20 md:p-2">
+                  <div className="max-w-xl mx-auto">
+                    
+                    {replyingTo && (
+                      <div className="mb-0 mx-1 flex items-center justify-between bg-[#EEF2F6] text-[#1E293B] px-4 py-2.5 rounded-t-2xl border-t border-x border-white/80 shadow-md animate-in slide-in-from-bottom-2">
+                        <div className="flex flex-col truncate border-l-2 border-[#2563EB] pl-2">
+                          <span className="text-[9px] font-black text-[#2563EB]">{replyingTo.senderName}에게 답장</span>
+                          <span className="text-xs truncate text-[#64748B]">{replyingTo.text}</span>
+                        </div>
+                        <button onClick={() => { vibrate(15); setReplyingTo(null); }} className="tactile-pill-btn p-1.5" style={{ padding: '6px' }}><Icons.X /></button>
+                      </div>
+                    )}
+
+                    {selectedImage && (
+                      <div className="mb-0 mx-1 flex items-center justify-between bg-[#E0F2FE] text-[#1E293B] px-4 py-2.5 rounded-t-2xl border-t border-x border-white/80 shadow-md animate-in slide-in-from-bottom-2">
+                        <div className="flex flex-col truncate border-l-2 border-[#0284C7] pl-2">
+                          <span className="text-[9px] font-black text-[#0284C7]">사진 첨부 대기중</span>
+                          <span className="text-xs truncate text-[#475569] font-bold">{selectedImage.name}</span>
+                        </div>
+                        <button onClick={() => { vibrate(15); setSelectedImage(null); }} className="tactile-pill-btn p-1.5" style={{ padding: '6px' }}><Icons.X /></button>
+                      </div>
+                    )}
+
+                    <div className={`debossed-well flex items-end p-2 md:bg-[#EAF0F6] ${(replyingTo || selectedImage) ? 'rounded-tl-none border-t-transparent' : ''}`}>
+                      <div className="px-1 py-0.5 flex-shrink-0">
+                        <button onClick={() => { vibrate(15); fileInputRef.current.click(); }} disabled={isUploading} className="tactile-pill-btn-primary w-12 h-12 flex items-center justify-center shadow-lg" style={{ padding: 0, background: 'linear-gradient(180deg, #94A3B8 0%, #64748B 100%)', borderColor: '#475569', outlineColor: '#CBD5E1' }}>
+                          <Icons.ImageIcon />
+                        </button>
+                        <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageSelect} />
+                      </div>
+                      
+                      <textarea
+                        className="flex-1 bg-transparent border-none outline-none resize-none max-h-24 p-3.5 text-xs sm:text-sm text-[#1E293B] placeholder:text-[#94A3B8] font-semibold"
+                        placeholder="글자 타이핑 모습이 상대에게 실시간으로 보입니다..."
+                        rows={1}
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        onKeyDown={(e) => { 
+                          if (e.key === 'Enter' && !e.shiftKey) { 
+                            e.preventDefault(); 
+                            if (e.nativeEvent.isComposing) return; // 한글 조합 중 엔터 치는 것 무시!
+                            handleSend(); 
+                          } 
+                        }}
+                        style={{ minHeight: '44px' }}
+                        disabled={isUploading}
+                      />
+                      
+                      <div className="px-1 py-0.5 flex-shrink-0">
+                        <button onClick={handleSend} disabled={(!inputText.trim() && !selectedImage) || isUploading} className="tactile-pill-btn-primary w-12 h-12 flex items-center justify-center shadow-lg animate-in fade-in" style={{ padding: 0 }}>
+                          {isUploading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Icons.Send />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </footer>
+              </div>
+            </div>
+          )}
+
+          {/* 모달 창 (읽음 확인 / 삭제) */}
+          {readInfoModal && (
+            <div className="fixed inset-0 bg-black/25 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+              <div className="tactile-card w-full max-w-xs p-6 flex flex-col border border-white/60 shadow-2xl relative z-50">
+                <div className="flex justify-between items-center mb-5">
+                  <h3 className="text-sm font-black text-[#1E293B] flex items-center gap-1.5"><Icons.Eye /> <span className="text-sm">수신 확인 리스트</span></h3>
+                  <button onClick={() => { vibrate(15); setReadInfoModal(null); }} className="tactile-pill-btn" style={{ padding: '6px' }}><Icons.X /></button>
+                </div>
+                
+                {(() => {
+                  const readUsers = allProfiles.filter(u => readInfoModal.readBy?.includes(u.id));
+                  const unreadUsers = allProfiles.filter(u => !readInfoModal.readBy?.includes(u.id));
+
+                  return (
+                    <div className="flex flex-col gap-4 max-h-60 overflow-y-auto pr-1">
+                      {unreadUsers.length > 0 && (
+                        <div className="debossed-well p-3.5">
+                          <h4 className="text-[10px] font-black text-red-500 tracking-wider uppercase mb-2">아직 안 읽음 ({unreadUsers.length})</h4>
+                          <div className="flex flex-wrap gap-1.5">
+                            {unreadUsers.map(u => <span key={u.id} className="text-[10px] px-2.5 py-1 rounded-md bg-red-100 text-red-700 border border-red-200 font-bold">{u.name}</span>)}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="debossed-well p-3.5">
+                        <h4 className="text-[10px] font-black text-[#2563EB] tracking-wider uppercase mb-2">읽음 확인 완료 ({readUsers.length})</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {readUsers.map(u => <span key={u.id} className={`text-[10px] px-2.5 py-1 rounded-md border font-extrabold ${u.color}`}>{u.name}</span>)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+                
+                <div className="pt-4 flex justify-center">
+                  <button onClick={() => { vibrate(15); setReadInfoModal(null); }} className="tactile-pill-btn w-full" style={{ padding: '12px 0' }}>닫기</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showDeleteModal && (
+            <div className="fixed inset-0 bg-black/25 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+              <div className="tactile-card w-full max-w-xs p-6 flex flex-col border border-white/60 shadow-2xl relative z-50 text-center">
+                <div className="w-14 h-14 mx-auto mb-4 flex items-center justify-center rounded-full bg-red-100 text-red-500 shadow-inner border border-red-200"><Icons.Trash2 /></div>
+                <h3 className="text-lg font-black text-[#1E293B] mb-2">계정 영구 삭제</h3>
+                <p className="text-xs font-bold text-[#64748B] leading-relaxed mb-6">정말 현재 접속 중인 계정을 삭제하시겠습니까?<br/>이 작업은 되돌릴 수 없습니다.</p>
+                <div className="flex gap-3">
+                  <button onClick={() => { vibrate(15); setShowDeleteModal(false); }} className="tactile-pill-btn flex-1 py-3 text-xs">취소</button>
+                  <button onClick={handleDeleteAccount} className="tactile-pill-btn flex-1 py-3 text-xs !text-red-500 font-black border-red-200 hover:bg-red-50">삭제하기</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
