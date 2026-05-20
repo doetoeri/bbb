@@ -398,30 +398,22 @@
         if ('Notification' in window) {
           setNotiPermission(Notification.permission);
         }
-        // Service Worker 등록 (모바일 백그라운드 알림에 필수)
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.register('./sw.js').catch(() => {});
-        }
       }, []);
 
       // 스마트 알림 발송 함수 (모바일/웹 대응)
       const fireNotification = (title, options) => {
         if (!('Notification' in window) || Notification.permission !== 'granted') return;
-        // SW 등록 있으면 showNotification 사용 (모바일 백그라운드 필수)
+        // 직접 Notification API 우선 시도 (데스크톱, 안드로이드 Chrome)
+        try {
+          new Notification(title, options);
+          return;
+        } catch (e) {
+          // iOS Safari PWA 등 직접 생성 불가 시 등록된 SW 사용
+        }
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistration().then(reg => {
-            if (reg && reg.active) {
-              reg.showNotification(title, options).catch(() => {
-                try { new Notification(title, options); } catch (e) {}
-              });
-            } else {
-              try { new Notification(title, options); } catch (e) {}
-            }
-          }).catch(() => {
-            try { new Notification(title, options); } catch (e) {}
-          });
-        } else {
-          try { new Notification(title, options); } catch (e) {}
+            if (reg) reg.showNotification(title, options).catch(() => {});
+          }).catch(() => {});
         }
       };
 
