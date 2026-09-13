@@ -32,24 +32,30 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          ./gradlew :device:assembleDebug :device:testDebugUnitTest :device:lintDebug --stacktrace | tee verification-ci.log
-      - name: Stage artifact
+          ./gradlew :device:assembleDebug :device:testDebugUnitTest :device:lintDebug :parent:assembleDebug :parent:lintDebug --stacktrace | tee verification-ci.log
+      - name: Stage artifacts
         working-directory: guardian-src
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          APK="$(find device/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)"
-          test -n "$APK"
-          cp "$APK" artifacts/Guardian-debug.apk
-          sha256sum artifacts/Guardian-debug.apk | tee artifacts/Guardian-debug.sha256
-      - name: Upload APK
+          DEVICE_APK="$(find device/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          PARENT_APK="$(find parent/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$DEVICE_APK"
+          test -n "$PARENT_APK"
+          cp "$DEVICE_APK" artifacts/Guardian-Device-debug.apk
+          cp "$PARENT_APK" artifacts/Guardian-Parent-debug.apk
+          sha256sum artifacts/Guardian-Device-debug.apk | tee artifacts/Guardian-Device-debug.sha256
+          sha256sum artifacts/Guardian-Parent-debug.apk | tee artifacts/Guardian-Parent-debug.sha256
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: Guardian-debug
+          name: Guardian-live
           path: |
-            guardian-src/artifacts/Guardian-debug.apk
-            guardian-src/artifacts/Guardian-debug.sha256
+            guardian-src/artifacts/Guardian-Device-debug.apk
+            guardian-src/artifacts/Guardian-Device-debug.sha256
+            guardian-src/artifacts/Guardian-Parent-debug.apk
+            guardian-src/artifacts/Guardian-Parent-debug.sha256
             guardian-src/verification-ci.log
           if-no-files-found: error
 
@@ -58,10 +64,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download built APK
+      - name: Download built APKs
         uses: actions/download-artifact@v4
         with:
-          name: Guardian-debug
+          name: Guardian-live
           path: guardian-artifact
       - uses: ReactiveCircus/android-emulator-runner@v2
         with:
@@ -73,26 +79,43 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
             set -eu
-            exec > >(tee emulator-validation.txt) 2>&1
-            APK="$(find guardian-artifact -type f -name 'Guardian-debug.apk' | head -n 1)"
-            test -n "$APK"
-            adb install -r "$APK"
+            DEVICE_APK="$(find guardian-artifact -type f -name 'Guardian-Device-debug.apk' | head -n 1)"
+            PARENT_APK="$(find guardian-artifact -type f -name 'Guardian-Parent-debug.apk' | head -n 1)"
+            test -n "$DEVICE_APK"
+            test -n "$PARENT_APK"
+
+            adb install -r "$DEVICE_APK"
             adb shell pm path app.guardian.device
             adb logcat -c
             adb shell am start -W -n app.guardian.device/.MainActivity
             sleep 5
-            PID="$(adb shell pidof app.guardian.device | tr -d '\r')"
-            test -n "$PID"
-            echo "Guardian PID: $PID"
+            DEVICE_PID="$(adb shell pidof app.guardian.device | tr -d '\r')"
+            test -n "$DEVICE_PID"
+            echo "Guardian Device PID: $DEVICE_PID"
             adb shell dumpsys package app.guardian.device | grep -E 'versionName=|versionCode='
             adb shell dumpsys activity activities | grep -F 'app.guardian.device/.MainActivity'
+
+            adb shell dpm set-device-owner app.guardian.device/.GuardianAdminReceiver
+            adb shell dumpsys device_policy | grep -F 'app.guardian.device/.GuardianAdminReceiver'
+            echo "DEVICE_OWNER_VALIDATION_SUCCESS"
+
+            adb install -r "$PARENT_APK"
+            adb shell pm path app.guardian.parent
+            adb shell am start -W -n app.guardian.parent/.MainActivity
+            sleep 8
+            PARENT_PID="$(adb shell pidof app.guardian.parent | tr -d '\r')"
+            test -n "$PARENT_PID"
+            echo "Guardian Parent PID: $PARENT_PID"
+            adb shell dumpsys package app.guardian.parent | grep -E 'versionName=|versionCode='
+            adb shell dumpsys activity activities | grep -F 'app.guardian.parent/.MainActivity'
+
             LOG="$(adb logcat -d -v brief)"
-            echo "$LOG" > guardian-logcat.txt
-            if echo "$LOG" | grep -E 'FATAL EXCEPTION.*app\.guardian\.device|Process: app\.guardian\.device'; then
+            printf '%s\n' "$LOG" > guardian-logcat.txt
+            if printf '%s\n' "$LOG" | grep -E 'Process: app\.guardian\.(device|parent)'; then
               echo "Guardian crash detected"
               exit 1
             fi
-            echo "EMULATOR_VALIDATION_SUCCESS"
+            echo "EMULATOR_VALIDATION_SUCCESS" | tee emulator-validation.txt
       - name: Upload emulator validation
         if: always()
         uses: actions/upload-artifact@v4
