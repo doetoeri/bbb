@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   android:
@@ -22,6 +23,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
       - uses: android-actions/setup-android@v3
       - name: Install Android SDK 36
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
@@ -32,7 +34,6 @@ jobs:
           set -o pipefail
           ./gradlew :device:assembleDebug :device:testDebugUnitTest :device:lintDebug --stacktrace | tee verification-ci.log
       - name: Stage artifact
-        if: success()
         working-directory: guardian-src
         shell: bash
         run: |
@@ -43,7 +44,6 @@ jobs:
           cp "$APK" artifacts/Guardian-debug.apk
           sha256sum artifacts/Guardian-debug.apk | tee artifacts/Guardian-debug.sha256
       - name: Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Guardian-debug
@@ -52,3 +52,53 @@ jobs:
             guardian-src/artifacts/Guardian-debug.sha256
             guardian-src/verification-ci.log
           if-no-files-found: error
+
+  emulator:
+    needs: android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download built APK
+        uses: actions/download-artifact@v4
+        with:
+          name: Guardian-debug
+          path: guardian-artifact
+      - uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 31
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: |
+            set -euo pipefail
+            exec > >(tee emulator-validation.txt) 2>&1
+            APK="$(find guardian-artifact -type f -name 'Guardian-debug.apk' | head -n 1)"
+            test -n "$APK"
+            adb install -r "$APK"
+            adb shell pm path app.guardian.device
+            adb logcat -c
+            adb shell am start -W -n app.guardian.device/.MainActivity
+            sleep 5
+            PID="$(adb shell pidof app.guardian.device | tr -d '\r')"
+            test -n "$PID"
+            echo "Guardian PID: $PID"
+            adb shell dumpsys package app.guardian.device | grep -E 'versionName=|versionCode='
+            adb shell dumpsys activity activities | grep -F 'app.guardian.device/.MainActivity'
+            LOG="$(adb logcat -d -v brief)"
+            echo "$LOG" > guardian-logcat.txt
+            if echo "$LOG" | grep -E 'FATAL EXCEPTION.*app\.guardian\.device|Process: app\.guardian\.device'; then
+              echo "Guardian crash detected"
+              exit 1
+            fi
+            echo "EMULATOR_VALIDATION_SUCCESS"
+      - name: Upload emulator validation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Guardian-emulator-validation
+          path: |
+            emulator-validation.txt
+            guardian-logcat.txt
+          if-no-files-found: warn
