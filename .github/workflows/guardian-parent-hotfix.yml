@@ -1,0 +1,55 @@
+name: Guardian Parent Hotfix
+
+on:
+  push:
+    branches: [ guardian-build ]
+    paths:
+      - "guardian-ci-src.tgz.b64"
+      - ".github/workflows/guardian-parent-hotfix.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Guardian source
+        run: |
+          mkdir -p guardian-src
+          base64 -d guardian-ci-src.tgz.b64 > guardian-ci-src.tgz
+          tar -xzf guardian-ci-src.tgz -C guardian-src
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Build and lint parent APK
+        working-directory: guardian-src
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew :parent:assembleDebug :parent:lintDebug --stacktrace | tee parent-verification.log
+      - name: Stage parent APK
+        working-directory: guardian-src
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          APK="$(find parent/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          cp "$APK" artifacts/Guardian-Parent-fixed.apk
+          sha256sum artifacts/Guardian-Parent-fixed.apk | tee artifacts/Guardian-Parent-fixed.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Guardian-Parent-fixed
+          path: |
+            guardian-src/artifacts/Guardian-Parent-fixed.apk
+            guardian-src/artifacts/Guardian-Parent-fixed.sha256
+            guardian-src/parent-verification.log
+          if-no-files-found: error
