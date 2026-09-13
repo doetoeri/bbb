@@ -1,0 +1,47 @@
+name: Guardian APK Build
+
+on:
+  push:
+    branches: [ guardian-build ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Guardian source
+        run: |
+          mkdir -p guardian-src
+          base64 -d guardian-ci-src.tgz.b64 > guardian-ci-src.tgz
+          tar -xzf guardian-ci-src.tgz -C guardian-src
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Build, test, lint
+        working-directory: guardian-src
+        run: ./gradlew :device:assembleDebug :device:testDebugUnitTest :device:lintDebug --stacktrace | tee verification-ci.log
+      - name: Stage artifact
+        if: success()
+        working-directory: guardian-src
+        run: |
+          mkdir -p artifacts
+          cp device/build/outputs/apk/debug/device-debug.apk artifacts/Guardian-debug.apk
+          sha256sum artifacts/Guardian-debug.apk | tee artifacts/Guardian-debug.sha256
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Guardian-debug
+          path: |
+            guardian-src/artifacts/Guardian-debug.apk
+            guardian-src/artifacts/Guardian-debug.sha256
+            guardian-src/verification-ci.log
+          if-no-files-found: error
