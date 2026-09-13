@@ -27,13 +27,20 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
       - name: Build, test, lint
         working-directory: guardian-src
-        run: ./gradlew :device:assembleDebug :device:testDebugUnitTest :device:lintDebug --stacktrace | tee verification-ci.log
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew :device:assembleDebug :device:testDebugUnitTest :device:lintDebug --stacktrace | tee verification-ci.log
       - name: Stage artifact
         if: success()
         working-directory: guardian-src
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p artifacts
-          cp device/build/outputs/apk/debug/device-debug.apk artifacts/Guardian-debug.apk
+          APK="$(find device/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          cp "$APK" artifacts/Guardian-debug.apk
           sha256sum artifacts/Guardian-debug.apk | tee artifacts/Guardian-debug.sha256
       - name: Upload APK
         if: success()
