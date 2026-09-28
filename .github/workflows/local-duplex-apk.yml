@@ -38,10 +38,10 @@ jobs:
         run: |
           set -euxo pipefail
           yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses >/dev/null || true
-          sdkmanager --channel=3 --sdk_root="$ANDROID_SDK_ROOT" \
+          sdkmanager --sdk_root="$ANDROID_SDK_ROOT" \
             "platform-tools" \
-            "platforms;android-37.2" \
-            "build-tools;37.0.0" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
             "ndk;28.2.13676358" \
             "cmake;3.22.1"
 
@@ -49,7 +49,7 @@ jobs:
         with:
           gradle-version: '9.6.1'
 
-      - name: Reconstruct project
+      - name: Reconstruct and patch project
         run: |
           set -euxo pipefail
           cat .build-local-duplex/chunk01.b64 \
@@ -60,25 +60,16 @@ jobs:
             | base64 -d > /tmp/project.zip
           sha256sum /tmp/project.zip
           unzip -q /tmp/project.zip -d /tmp/work
-          test -f /tmp/work/LocalDuplexAgent-Phase1/app/build.gradle.kts
-          python3 - <<'PY'
-from pathlib import Path
-g = Path('/tmp/work/LocalDuplexAgent-Phase1/app/build.gradle.kts')
-s = g.read_text()
-s = s.replace(
-    '    compileSdk = 37\n',
-    '    compileSdk {\n        version = release(37) {\n            minorApiLevel = 2\n        }\n    }\n'
-)
-g.write_text(s)
-
-m = Path('/tmp/work/LocalDuplexAgent-Phase1/app/src/main/java/dev/localduplex/phase1/MainActivity.kt')
-s = m.read_text()
-imp = 'import androidx.activity.compose.setContent\n'
-anchor = 'import androidx.activity.ComponentActivity\n'
-if imp not in s:
-    s = s.replace(anchor, anchor + imp)
-m.write_text(s)
-PY
+          APP=/tmp/work/LocalDuplexAgent-Phase1/app
+          test -f "$APP/build.gradle.kts"
+          sed -i 's/compileSdk = 37/compileSdk = 36/' "$APP/build.gradle.kts"
+          sed -i 's/compose-bom:2026.09.00/compose-bom:2026.04.01/' "$APP/build.gradle.kts"
+          sed -i 's/androidx.activity:activity-compose:1.13.0/androidx.activity:activity-compose:1.12.1/' "$APP/build.gradle.kts"
+          MAIN="$APP/src/main/java/dev/localduplex/phase1/MainActivity.kt"
+          grep -q 'import androidx.activity.compose.setContent' "$MAIN" || \
+            sed -i '/import androidx.activity.ComponentActivity/a import androidx.activity.compose.setContent' "$MAIN"
+          grep -n 'compileSdk\|compose-bom\|activity-compose' "$APP/build.gradle.kts"
+          grep -n 'setContent' "$MAIN" | head
 
       - name: Build debug APK
         run: |
