@@ -50,6 +50,12 @@ jobs:
           mkdir -p /tmp/work
           unzip -q /tmp/source.zip -d /tmp/work
           test -f /tmp/work/LocalDuplexAgent-Final/app/build.gradle.kts
+          cp "$GITHUB_WORKSPACE/.build-local-duplex-final-overrides/ModelStore.kt" \
+            /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/model/ModelStore.kt
+          cp "$GITHUB_WORKSPACE/.build-local-duplex-final-overrides/MainActivity.kt" \
+            /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/MainActivity.kt
+          grep -q "ImportProgress" /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/model/ModelStore.kt
+          grep -q "LinearProgressIndicator" /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/MainActivity.kt
 
       - name: Fetch pinned offline runtime dependencies
         run: |
