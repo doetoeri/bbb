@@ -61,6 +61,24 @@ jobs:
           sha256sum /tmp/project.zip
           unzip -q /tmp/project.zip -d /tmp/work
           test -f /tmp/work/LocalDuplexAgent-Phase1/app/build.gradle.kts
+          python3 - <<'PY'
+from pathlib import Path
+g = Path('/tmp/work/LocalDuplexAgent-Phase1/app/build.gradle.kts')
+s = g.read_text()
+s = s.replace(
+    '    compileSdk = 37\n',
+    '    compileSdk {\n        version = release(37) {\n            minorApiLevel = 2\n        }\n    }\n'
+)
+g.write_text(s)
+
+m = Path('/tmp/work/LocalDuplexAgent-Phase1/app/src/main/java/dev/localduplex/phase1/MainActivity.kt')
+s = m.read_text()
+imp = 'import androidx.activity.compose.setContent\n'
+anchor = 'import androidx.activity.ComponentActivity\n'
+if imp not in s:
+    s = s.replace(anchor, anchor + imp)
+m.write_text(s)
+PY
 
       - name: Build debug APK
         run: |
