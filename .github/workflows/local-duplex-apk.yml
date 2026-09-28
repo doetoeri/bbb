@@ -40,8 +40,8 @@ jobs:
           yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses >/dev/null || true
           sdkmanager --channel=3 --sdk_root="$ANDROID_SDK_ROOT" \
             "platform-tools" \
-            "platforms;android-36" \
-            "build-tools;36.0.0" \
+            "platforms;android-37.2" \
+            "build-tools;37.0.0" \
             "ndk;28.2.13676358" \
             "cmake;3.22.1"
 
@@ -61,19 +61,6 @@ jobs:
           sha256sum /tmp/project.zip
           unzip -q /tmp/project.zip -d /tmp/work
           test -f /tmp/work/LocalDuplexAgent-Phase1/app/build.gradle.kts
-          sed -i 's/compileSdk = 37/compileSdk = 36/' /tmp/work/LocalDuplexAgent-Phase1/app/build.gradle.kts
-          sed -i 's/compose-bom:2026.09.00/compose-bom:2026.04.01/' /tmp/work/LocalDuplexAgent-Phase1/app/build.gradle.kts
-          sed -i 's/androidx.activity:activity-compose:1.13.0/androidx.activity:activity-compose:1.12.1/' /tmp/work/LocalDuplexAgent-Phase1/app/build.gradle.kts
-          python3 - <<'PY'
-from pathlib import Path
-p=Path('/tmp/work/LocalDuplexAgent-Phase1/app/src/main/java/dev/localduplex/phase1/MainActivity.kt')
-s=p.read_text()
-needle='import androidx.activity.ComponentActivity\n'
-imp='import androidx.activity.compose.setContent\n'
-if imp not in s:
-    s=s.replace(needle, needle+imp)
-p.write_text(s)
-PY
 
       - name: Build debug APK
         run: |
