@@ -40,8 +40,8 @@ jobs:
           yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses >/dev/null || true
           sdkmanager --sdk_root="$ANDROID_SDK_ROOT" \
             "platform-tools" \
-            "platforms;android-37" \
-            "build-tools;37.0.0" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
             "ndk;28.2.13676358" \
             "cmake;3.22.1"
 
@@ -61,6 +61,7 @@ jobs:
           sha256sum /tmp/project.zip
           unzip -q /tmp/project.zip -d /tmp/work
           test -f /tmp/work/LocalDuplexAgent-Phase1/app/build.gradle.kts
+          sed -i 's/compileSdk = 37/compileSdk = 36/' /tmp/work/LocalDuplexAgent-Phase1/app/build.gradle.kts
 
       - name: Build debug APK
         run: |
