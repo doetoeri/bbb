@@ -1,6 +1,9 @@
 name: Local Duplex APK Build
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - tmp/local-duplex-apk-20260928
