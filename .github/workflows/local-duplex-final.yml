@@ -58,6 +58,8 @@ jobs:
             /tmp/work/LocalDuplexAgent-Final
           python3 "$GITHUB_WORKSPACE/.build-local-duplex-final-overrides/patch_fast_llm.py" \
             /tmp/work/LocalDuplexAgent-Final
+          python3 "$GITHUB_WORKSPACE/.build-local-duplex-final-overrides/patch_safe_llm.py" \
+            /tmp/work/LocalDuplexAgent-Final
           grep -q "ImportProgress" /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/model/ModelStore.kt
           grep -q "LinearProgressIndicator" /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/MainActivity.kt
           grep -q "importProgressText" /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/MainActivity.kt
