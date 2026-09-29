@@ -60,6 +60,14 @@ jobs:
             /tmp/work/LocalDuplexAgent-Final
           python3 "$GITHUB_WORKSPACE/.build-local-duplex-final-overrides/patch_safe_llm.py" \
             /tmp/work/LocalDuplexAgent-Final
+          cp "$GITHUB_WORKSPACE/.build-local-duplex-final-overrides/ReliableLlamaBridge.cpp" \
+            /tmp/work/LocalDuplexAgent-Final/app/src/main/cpp/LlamaBridge.cpp
+          cp "$GITHUB_WORKSPACE/.build-local-duplex-final-overrides/ReliableNativeLlama.kt" \
+            /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/llm/NativeLlama.kt
+          cp "$GITHUB_WORKSPACE/.build-local-duplex-final-overrides/ReliableLocalLlmEngine.kt" \
+            /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/llm/LocalLlmEngine.kt
+          grep -q "nativeLastError" /tmp/work/LocalDuplexAgent-Final/app/src/main/cpp/LlamaBridge.cpp
+          grep -q "self-test" /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/llm/LocalLlmEngine.kt
           grep -q "ImportProgress" /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/model/ModelStore.kt
           grep -q "LinearProgressIndicator" /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/MainActivity.kt
           grep -q "importProgressText" /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/MainActivity.kt
