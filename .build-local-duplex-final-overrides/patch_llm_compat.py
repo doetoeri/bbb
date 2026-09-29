@@ -151,7 +151,7 @@ new_load = r'''    suspend fun load(model: File, onStage: (String) -> Unit = {})
             }
             NativeLlama.nativeRollbackDraft()
             check(probe.toString().isNotBlank()) {
-                "LLM self-test 생성 실패(${elappsed()}): ${NativeLlama.nativeLastError().ifBlank { "토휰이 생성되지 않음" }}"
+                "LLM self-test 생성 실패(${elapsed()}): ${NativeLlama.nativeLastError().ifBlank { "토휰이 생성되지 않음" }}"
             }
             selfTestText = probe.toString().trim().take(80)
             loaded = true
