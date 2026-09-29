@@ -66,6 +66,11 @@ jobs:
             /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/llm/NativeLlama.kt
           cp "$GITHUB_WORKSPACE/.build-local-duplex-final-overrides/ReliableLocalLlmEngine.kt" \
             /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/llm/LocalLlmEngine.kt
+          python3 "$GITHUB_WORKSPACE/.build-local-duplex-final-overrides/patch_llm_compat.py" \
+            /tmp/work/LocalDuplexAgent-Final
+          grep -q "nativeLoadModelOnly" /tmp/work/LocalDuplexAgent-Final/app/src/main/cpp/LlamaBridge.cpp
+          grep -q "GGML_CPU_KLEIDIAI OFF" /tmp/work/LocalDuplexAgent-Final/app/src/main/cpp/CMakeLists.txt
+          grep -q "2/3-1" /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/llm/LocalLlmEngine.kt
           grep -q "nativeLastError" /tmp/work/LocalDuplexAgent-Final/app/src/main/cpp/LlamaBridge.cpp
           grep -q "self-test" /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/llm/LocalLlmEngine.kt
           grep -q "ImportProgress" /tmp/work/LocalDuplexAgent-Final/app/src/main/java/dev/localduplex/agent/model/ModelStore.kt
